@@ -343,7 +343,7 @@ namespace  mini3d
     class Scene
     {
     public:
-        Scene();
+        Scene(){}
 
         //初始化obj
         void init();
@@ -359,23 +359,24 @@ namespace  mini3d
 
         Render(float width,float height)
         {
-            frameBuffer = new Color[width*height];
-            Zbuffer = new float[width*height];
+            frameBuffer = new Color[width*height* sizeof(Color)];
+            Zbuffer = new float[width*height* sizeof(float)];
+            this->width = width;
+            this->height = height;
         }
 
         void rending(Scene& scene,Camera& camera);
 
         Color _bkColor;
+        Color _lineColor;
         RENDER_STATE _state;
     private:
         static UINT check_cvv(const vector4& p);
 
-
-
         //设置像素
-        void setPixel(int x,int y,Color color);
+        void setPixel(int x,int y,float w,Color color);
 
-        //划线
+        //画线
         void drawline(vector4 be,vector4 ed);
 
         //画三角形
@@ -388,6 +389,7 @@ namespace  mini3d
         //渲染到设备
 
     private:
+        int width,height;
         Color *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
     };

@@ -110,6 +110,44 @@ void Render::rending(Scene &scene, Camera &camera) {
 
 }
 
+void Render::setPixel(int x, int y, float w, Color color) {
+    w = 1/w;
+    auto& zbuffer = Zbuffer[x+y*width];
+    if(x>=0 && x<width && y>=0 && y<height && zbuffer > w)
+    {
+        zbuffer = w;
+        frameBuffer[x+y*width] = color;
+    }
+}
+
+void Render::drawline(vector4 be, vector4 ed) {
+    auto sub = ed - be;
+    float dxChange = sub.y == 0?0:sub.x/sub.y;
+    float dxSum = 0;
+    int curX = (int)(be.x+0.5);
+
+    for (int y = (int)(be.y+0.5); y <= ed.y; ++y) {
+        dxSum+= dxChange;
+        if(dxSum < 1)
+        {
+            setPixel(curX, y, 1, _lineColor);
+        }
+        else
+        {
+            while(dxSum>=1)
+            {
+                setPixel(curX,y,1,_lineColor);
+                --dxSum;
+                ++curX;
+            }
+        }
+    }
+}
+
+void Render::drawTriangle(const Triangle &t) {
+
+}
+
 void vertex::normalizeSelf() {
     pos.w = w;
     pos.normalizeSelf();
