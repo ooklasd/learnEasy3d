@@ -171,11 +171,75 @@ void Triangle::sortVectex() {
     if(v[0].pos.y <v[2].pos.y) std::swap(v[0], v[2]);
     if(v[1].pos.y <v[2].pos.y) std::swap(v[1], v[2]);
 
-    
+	if (v[0].pos.y == v[1].pos.y && v[0].pos.x > v[1].pos.x) std::swap(v[0], v[1]);
+	if (v[1].pos.y == v[2].pos.y && v[1].pos.x > v[2].pos.x) std::swap(v[1], v[2]);
 }
 
-std::vector<Triangle> Triangle::makeTwo() const {
-    return std::vector<Triangle>();
+std::vector<Triangle> Triangle::makeTwo() {
+	std::vector<Triangle> ret;
+	ret.reserve(2);
+	sortVectex();
+
+	//三个点在同一掉线，则无效
+	if (v[0].pos.y == v[1].pos.y && v[0].pos.y == v[2].pos.y) return std::move(ret);
+	if (v[0].pos.x == v[1].pos.x && v[0].pos.x == v[2].pos.x) return std::move(ret);
+
+	//平底三角直接返回自己
+	if (v[0].pos.y == v[1].pos.y || v[1].pos.y == v[2].pos.y)
+	{
+		ret.push_back(*this);
+		return std::move(ret);
+	}
+
+	//拆分三角
+
+	//中点在线段的左边
+	auto d1 = v[0].pos - v[2].pos;
+	auto d2 = v[1].pos - v[2].pos;
+
+	auto k1 = d1.x / d1.y;
+	auto k2 = d2.x / d2.y;
+
+	auto dy01 = (v[0].pos.y - v[1].pos.y);
+	auto dy12 = (v[1].pos.y - v[2].pos.y);
+	auto dy02 = (v[0].pos.y - v[2].pos.y);
+
+	vertex middle = v[0].interp(v[2], dy01 / dy02);
+
+	if (k1 == k2)
+	{
+		return std::move(ret);
+	}
+	if (k1>k2)
+	{
+		Triangle t1, t2;
+		t1.v[0] = v[0];
+		t1.v[1] = v[1];
+		t1.v[2] = middle;
+
+		t2.v[0] = v[1];
+		t2.v[1] = middle;
+		t2.v[2] = v[2];
+
+		ret.push_back(t1);
+		ret.push_back(t2);
+	}
+	else
+	{
+		Triangle t1, t2;
+		t1.v[0] = v[0];
+		t1.v[1] = middle;
+		t1.v[2] = v[1];
+
+		t2.v[0] = middle;
+		t2.v[1] = v[1];
+		t2.v[2] = v[2];
+
+		ret.push_back(t1);
+		ret.push_back(t2);
+	}
+
+    return std::move(ret);
 }
 
 bool Triangle::isFlat() {

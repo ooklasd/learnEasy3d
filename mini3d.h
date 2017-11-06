@@ -323,7 +323,7 @@ namespace  mini3d
         float top,bottom;
         void computeTopBotton();
         void sortVectex();
-        std::vector<Triangle> makeTwo()const;
+        std::vector<Triangle> makeTwo();
         bool isFlat();
     };
 
