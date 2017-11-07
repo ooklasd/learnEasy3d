@@ -309,6 +309,7 @@ namespace  mini3d
             UV = obj.uv[index];
         }
         void normalizeSelf();
+        vertex normalize()const;
 
         vertex sub(const vertex& rhs)const;
         vertex add(const vertex& rhs)const;
@@ -325,6 +326,8 @@ namespace  mini3d
         void sortVectex();
         std::vector<Triangle> makeTwo();
         bool isFlat();
+        //转化成梯形
+        //std::vector<vertex> toTrapezoid();
     };
 
     //线段扫描器，用于插值线段
@@ -357,7 +360,7 @@ namespace  mini3d
     public:
         enum RENDER_STATE{wireframeRender,colorRender,textureRender};
 
-        Render(float width,float height)
+        Render(int width,int height)
         {
             frameBuffer = new Color[width*height* sizeof(Color)];
             Zbuffer = new float[width*height* sizeof(float)];
@@ -378,6 +381,7 @@ namespace  mini3d
 
         //画线
         void drawline(vector4 be,vector4 ed);
+        void drawline(const vertex& be,const vertex& ed);
 
         //画三角形
         void drawTriangle(const Triangle& t);
