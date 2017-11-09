@@ -4,6 +4,8 @@
 //
 
 #include "mini3d.h"
+#include <cmath>
+#include <cassert>
 
 using namespace mini3d;
 Object3D::Object3D() {
@@ -145,7 +147,63 @@ void Render::drawline(vector4 be, vector4 ed) {
 }
 
 void Render::drawTriangle(const Triangle &t) {
+    int top = (int)(t.top+0.5);
+    int bottom = (int)(t.bottom+0.5);
 
+    //平底三角形转化为平行梯形
+    vertex topV[2],bottomV[2];
+    if(t.v[0].pos.y == t.v[1].pos.y)
+    {
+        topV[0] = t.v[0];
+        topV[1] = t.v[1];
+        bottomV[0] = bottomV[1] = t.v[2];
+    }
+    else
+    {
+        topV[0] = topV[1] = t.v[0];
+        bottomV[0] = t.v[1];
+        bottomV[1] = t.v[2];
+    }
+
+    assert(topV->pos.y == topV->pos.y);
+    assert(bottomV->pos.y == bottomV->pos.y);
+
+    //中间向两边
+    for (int y = top; y <= bottom; ++y) {
+        if(y>=0 && y<width)
+        {
+            //边缘插值
+            auto leftEdge = topV[0].interp(bottomV[1], y/(bottom-top));
+            auto rightEdge = topV[0].interp(bottomV[1], y/(bottom-top));
+            leftEdge.pos
+            //直线描写
+            drawline(leftEdge,rightEdge);
+        }
+    }
+}
+
+void Render::drawline(const vertex& be, const vertex& ed) {
+    auto fb = frameBuffer + (int)(be.pos.y+0.5)*width;
+    auto zb = Zbuffer + (int)(be.pos.y+0.5)*width;
+
+    int beginx = (int)(be.pos.x+0.5);
+    int endx = (int)(ed.pos.x+0.5);
+    LineScaner ls(be,ed,endx - beginx);
+    vertex curPoint = be;
+    for (int x = beginxx; x <= endx; ++x) {
+        if(x>=0 && x<width)
+        {
+            //描写当前点的颜色
+            float w = 1/curPoint.w;
+            if(Zbuffer[x] > w)
+            {
+                Zbuffer[x] = w;
+                auto p = curPoint.normalize();
+                fb[x] = p.color;
+            }
+        }
+        ls.step(curPoint);
+    }
 }
 
 void Render::ClearFrame(Color c)
@@ -203,6 +261,12 @@ vertex vertex::add(const vertex &rhs) const {
     ret.w = w + rhs.w;
     ret.color = color + rhs.color;
     return std::move(ret);
+}
+
+vertex vertex::normalize() const {
+    auto temp = *this;
+    temp.normalizeSelf();
+    return temp;
 }
 
 LineScaner::LineScaner(const vertex &v1, const vertex &v2, int stepSize) {
@@ -305,3 +369,4 @@ std::vector<Triangle> Triangle::makeTwo() {
 bool Triangle::isFlat() {
     return false;
 }
+
