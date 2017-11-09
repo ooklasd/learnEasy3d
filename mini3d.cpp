@@ -8,6 +8,11 @@
 #include <cassert>
 
 using namespace mini3d;
+
+int CMID(int x, int min, int max) {
+    return (x < min)? min : ((x > max)? max : x);
+}
+
 Object3D::Object3D() {
     _textrue = nullptr;
 
@@ -175,7 +180,7 @@ void Render::drawTriangle(const Triangle &t) {
             //边缘插值
             auto leftEdge = topV[0].interp(bottomV[1], y/(bottom-top));
             auto rightEdge = topV[0].interp(bottomV[1], y/(bottom-top));
-            leftEdge.pos
+
             //直线描写
             drawline(leftEdge,rightEdge);
         }
@@ -190,14 +195,14 @@ void Render::drawline(const vertex& be, const vertex& ed) {
     int endx = (int)(ed.pos.x+0.5);
     LineScaner ls(be,ed,endx - beginx);
     vertex curPoint = be;
-    for (int x = beginxx; x <= endx; ++x) {
+    for (int x = beginx; x <= endx; ++x) {
         if(x>=0 && x<width)
         {
             //描写当前点的颜色
             float w = 1/curPoint.w;
-            if(Zbuffer[x] > w)
+            if(zb[x] > w)
             {
-                Zbuffer[x] = w;
+                zb[x] = w;
                 auto p = curPoint.normalize();
                 fb[x] = p.color;
             }
@@ -208,12 +213,13 @@ void Render::drawline(const vertex& be, const vertex& ed) {
 
 void Render::ClearFrame(Color c)
 {
-	for (size_t y = 0; y < height; y++)
+	for (int y = 0; y < height; y++)
 	{
 		int offset = y * width;
 		for (size_t x = 0; x < width; x++)
 		{
-			frameBuffer[x + offset] = c;
+            frameBuffer[x + offset] = c;
+            Zbuffer[x + offset] = 1;
 		}
 	}
 }
@@ -226,6 +232,10 @@ void Render::CreateWindow()
 void Render::FrameToWindow()
 {
 
+}
+
+UINT Render::check_cvv(const vector4 &p) {
+    return 0;
 }
 
 void vertex::normalizeSelf() {

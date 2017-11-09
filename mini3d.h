@@ -12,7 +12,7 @@
 namespace  mini3d
 {
     typedef unsigned int UINT;
-    int CMID(int x, int min, int max) { return (x < min)? min : ((x > max)? max : x); }
+    int CMID(int x, int min, int max);
 
     // 计算插值：t 为 [0, 1] 之间的数值
     template <typename T>
@@ -35,12 +35,12 @@ namespace  mini3d
             this->w = w;
         }
 
-        vectorX<T> add(vectorX<T>& rhs)const
+        vectorX<T> add(const vectorX<T>& rhs)const
         {
             return vectorX<T>(x+rhs.x,y+rhs.y,z+rhs.z,1);
         }
 
-        vectorX<T> sub(vectorX<T>& rhs)const
+        vectorX<T> sub(const vectorX<T>& rhs)const
         {
             return vectorX<T>(x-rhs.x,y-rhs.y,z-rhs.z,1);
         }
@@ -57,21 +57,21 @@ namespace  mini3d
 
         void normalizeSelf()
         {
-            return x/=w,y/=w,z/=w,w=1;
+            x/=w,y/=w,z/=w,w=1;
         }
 
-        T length()constconst
+        T length()const
         {
             float temp = x*x+y*y+z*z;
             return ::sqrt(temp);
         }
 
-        T dot(vectorX<T>& rhs)const
+        T dot(const vectorX<T>& rhs)const
         {
             return x*rhs.x + y*rhs.y + z*rhs.z;
         }
 
-        vectorX<T> cross(vectorX<T>& rhs)const
+        vectorX<T> cross(const vectorX<T>& rhs)const
         {
             float m1, m2, m3;
             m1 = y * rhs.z - z * rhs.y;
@@ -91,21 +91,21 @@ namespace  mini3d
             return ret;
         }
 
-        vectorX<T> operator -(vectorX<T>& rhs)const
+        vectorX<T> operator -(const vectorX<T>& rhs)const
         {
             return sub(rhs);
         }
 
-        vectorX<T> operator +(vectorX<T>& rhs)const
+        vectorX<T> operator +(const vectorX<T>& rhs)const
         {
             return add(rhs);
         }
 
-        vectorX<T> operator *(vectorX<T>& rhs)const
+        vectorX<T> operator *(const vectorX<T>& rhs)const
         {
             return dot(rhs);
         }
-        vectorX<T> operator ^(vectorX<T>& rhs)const
+        vectorX<T> operator ^(const vectorX<T>& rhs)const
         {
             return cross(rhs);
         }
@@ -246,13 +246,18 @@ namespace  mini3d
 
     struct Color
     {
-        Color(UINT c = 0xffffff):color(c){}
+        Color(UINT c = 0xffffff){
+            value.color = c;
+        }
         union {
             unsigned int color;
-            char a,r,g,b;
-        };
+            struct aRGB{
+                char a,r,g,b;
+            };
+        }value;
 
-        operator UINT (){return color;}
+        operator UINT ()const{return value.color;}
+        operator float ()const{return (float)value.color;}
     };
 
     //透视相机
@@ -306,7 +311,7 @@ namespace  mini3d
         float color;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
-            color = obj.colors[index].color;
+            color = (float)obj.colors[index];
             UV = obj.uv[index];
         }
         void normalizeSelf();
