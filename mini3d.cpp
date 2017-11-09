@@ -148,12 +148,34 @@ void Render::drawTriangle(const Triangle &t) {
 
 }
 
+void Render::ClearFrame(Color c)
+{
+	for (size_t y = 0; y < height; y++)
+	{
+		int offset = y * width;
+		for (size_t x = 0; x < width; x++)
+		{
+			frameBuffer[x + offset] = c;
+		}
+	}
+}
+
+void Render::CreateWindow()
+{
+
+}
+
+void Render::FrameToWindow()
+{
+
+}
+
 void vertex::normalizeSelf() {
     pos.w = w;
     pos.normalizeSelf();
     UV.w = w;
     UV.normalizeSelf();
-    color.color /= w;
+    color /= w;
 }
 
 vertex vertex::sub(const vertex & rhs)const {
@@ -161,7 +183,7 @@ vertex vertex::sub(const vertex & rhs)const {
     ret.pos = pos - rhs.pos;
     ret.UV = UV - rhs.UV;
     ret.w = w - rhs.w;
-    ret.color.color = color.color - rhs.color.color;
+    ret.color = color - rhs.color;
     return std::move(ret);
 }
 
@@ -170,7 +192,7 @@ vertex vertex::interp(const vertex& rhs, float t) {
     ret.pos = pos.interp(rhs.pos, t);
     ret.UV = UV.interp(rhs.UV, t);
     ret.w = mini3d::interp(w,rhs.w, t);
-    ret.color.color = mini3d::interp(color.color,rhs.color.color,t);
+    ret.color = mini3d::interp(color,rhs.color,t);
     return std::move(ret);
 }
 
@@ -179,7 +201,7 @@ vertex vertex::add(const vertex &rhs) const {
     ret.pos = pos + rhs.pos;
     ret.UV = UV + rhs.UV;
     ret.w = w + rhs.w;
-    ret.color.color = color.color + rhs.color.color;
+    ret.color = color + rhs.color;
     return std::move(ret);
 }
 

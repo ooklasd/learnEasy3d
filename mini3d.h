@@ -35,22 +35,22 @@ namespace  mini3d
             this->w = w;
         }
 
-        vectorX<T> add(vectorX<T>& rhs)
+        vectorX<T> add(vectorX<T>& rhs)const
         {
             return vectorX<T>(x+rhs.x,y+rhs.y,z+rhs.z,1);
         }
 
-        vectorX<T> sub(vectorX<T>& rhs)
+        vectorX<T> sub(vectorX<T>& rhs)const
         {
             return vectorX<T>(x-rhs.x,y-rhs.y,z-rhs.z,1);
         }
 
-        vectorX<T> scale(float v)
+        vectorX<T> scale(float v)const
         {
             return vectorX<T>(x/=v,y/=v,z/=v,1);
         }
 
-        vectorX<T> normalize()
+        vectorX<T> normalize()const
         {
             return vectorX<T>(x/w,y/w,z/w,1);
         }
@@ -60,18 +60,18 @@ namespace  mini3d
             return x/=w,y/=w,z/=w,w=1;
         }
 
-        T length()const
+        T length()constconst
         {
             float temp = x*x+y*y+z*z;
             return ::sqrt(temp);
         }
 
-        T dot(vectorX<T>& rhs)
+        T dot(vectorX<T>& rhs)const
         {
             return x*rhs.x + y*rhs.y + z*rhs.z;
         }
 
-        vectorX<T> cross(vectorX<T>& rhs)
+        vectorX<T> cross(vectorX<T>& rhs)const
         {
             float m1, m2, m3;
             m1 = y * rhs.z - z * rhs.y;
@@ -80,7 +80,7 @@ namespace  mini3d
             return vectorX<T>(m1,m2,m3);
         }
 
-        vectorX<T> interp(const vectorX<T>& rhs,T t)
+        vectorX<T> interp(const vectorX<T>& rhs,T t)const
         {
             vectorX<T> ret;
 
@@ -91,29 +91,30 @@ namespace  mini3d
             return ret;
         }
 
-        vectorX<T> operator -(vectorX<T>& rhs)
+        vectorX<T> operator -(vectorX<T>& rhs)const
         {
             return sub(rhs);
         }
 
-        vectorX<T> operator +(vectorX<T>& rhs)
+        vectorX<T> operator +(vectorX<T>& rhs)const
         {
             return add(rhs);
         }
 
-        vectorX<T> operator *(vectorX<T>& rhs)
+        vectorX<T> operator *(vectorX<T>& rhs)const
         {
             return dot(rhs);
         }
-        vectorX<T> operator ^(vectorX<T>& rhs)
+        vectorX<T> operator ^(vectorX<T>& rhs)const
         {
             return cross(rhs);
         }
 
-        vectorX<T> operator /(float v)
+		template<typename TValue>
+        vectorX<T> operator /(TValue v)const
         {
-            return scale(v);
-        }
+            return scale(1/v);
+        }		
 
         union
         {
@@ -302,10 +303,10 @@ namespace  mini3d
         vector4 pos;
         vector4 UV;
         float w;
-        Color color;
+        float color;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
-            color = obj.colors[index];
+            color = obj.colors[index].color;
             UV = obj.uv[index];
         }
         void normalizeSelf();
@@ -351,6 +352,16 @@ namespace  mini3d
         Object3D obj;
     };
 
+	//设备接口
+	class Device {
+	public:
+		Device():lpData(nullptr){}
+		virtual UINT Create(int width, int height) = 0;
+		virtual UINT Frame(Color *frameBuffer) = 0;
+	protected:
+		void * lpData;
+	};
+
     //渲染器
     class Render
     {
@@ -382,20 +393,21 @@ namespace  mini3d
         //画三角形
         void drawTriangle(const Triangle& t);
 
-        //创建窗口设备
+		//用背景颜色清空缓存
+		void ClearFrame(Color c);
 
-        //用背景颜色清空窗口
+        //创建窗口设备
+		void CreateWindow();        
 
         //渲染到设备
+		void FrameToWindow();
 
     private:
         int width,height;
         Color *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
+		void * device;
     };
-
-
-
 }
 
 #endif //REMOVE_DUPLICATE_LETTERS_MINI3D_H
