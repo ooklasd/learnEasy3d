@@ -35,6 +35,14 @@ namespace  mini3d
             this->w = w;
         }
 
+        void set(T x,T y, T z,T w = 1)
+        {
+            this->x = x;
+            this->y = y;
+            this->z = z;
+            this->w = w;
+        }
+
         vectorX<T> add(const vectorX<T>& rhs)const
         {
             return vectorX<T>(x+rhs.x,y+rhs.y,z+rhs.z,1);
@@ -167,10 +175,10 @@ namespace  mini3d
             MatrixX<T> ret;
             for (int i = 0; i < 4; ++i) {
                 for (int j = 0; j <4; ++j) {
-                    ret.m[i][j] = m[j][0] * rhs.m[0][j]
-                            +m[j][1] * rhs.m[1][j]
-                            +m[j][2] * rhs.m[2][j]
-                            +m[j][3] * rhs.m[3][j];
+                    ret.m[i][j] = m[0][j] * rhs.m[i][0]
+                                + m[1][j] * rhs.m[i][1]
+                                + m[2][j] * rhs.m[i][2]
+                                + m[3][j] * rhs.m[i][3];
                 }
             }
             return ret;
@@ -203,12 +211,12 @@ namespace  mini3d
 
         MatrixX<T> operator-(const MatrixX<T>& rhs)
         {
-            return add(rhs);
+            return sub(rhs);
         }
 
         MatrixX<T> operator*(const MatrixX<T>& rhs)
         {
-            return add(rhs);
+            return mul(rhs);
         }
 
         T m[4][4] = {};
@@ -240,6 +248,7 @@ namespace  mini3d
     class Camera {
     public:
         virtual const Matrix& getMatrix()const = 0;
+        virtual void initMatrix() = 0;
         float znear,  zfar;
 
     };
@@ -276,8 +285,19 @@ namespace  mini3d
             return perspectiveMatrix;
         }
 
+        void initMatrix() override {
+
+        }
+
+        void setPosition(const vector4& pos)
+        {
+            position =pos;
+            
+
+        }
+
         float width, height,  angle;
-        vector4 look,up,right;
+        vector4 look,up,right,position;
         Matrix perspectiveMatrix;
     };
 
