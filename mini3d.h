@@ -47,7 +47,7 @@ namespace  mini3d
 
         vectorX<T> scale(float v)const
         {
-            return vectorX<T>(x/=v,y/=v,z/=v,1);
+            return vectorX<T>(x/v,y/v,z/v,1);
         }
 
         vectorX<T> normalize()const
