@@ -8,6 +8,8 @@
 
 #include <math.h>
 #include <vector>
+#include<Windows.h>
+#include<memory>
 
 namespace  mini3d
 {
@@ -122,13 +124,31 @@ namespace  mini3d
         vectorX<T> operator /(TValue v)const
         {
             return scale(1/v);
-        }		
+        }	
 
-        union
-        {
-            T x,y,z,w;
-            T v[4];
-        };
+		T& operator[](size_t index)
+		{
+			switch (index)
+			{
+			case 0:return x;
+			case 1:return y;
+			case 2:return z;
+			case 3:return w;
+			}
+		}
+
+		const T& operator[](size_t index)const
+		{
+			switch (index)
+			{
+			case 0:return x;
+			case 1:return y;
+			case 2:return z;
+			case 3:return w;
+			}
+		}
+
+        T x,y,z,w;
     };
     typedef vectorX<float> vector4;
 
@@ -250,7 +270,6 @@ namespace  mini3d
         virtual const Matrix& getMatrix()const = 0;
         virtual void initMatrix() = 0;
         float znear,  zfar;
-
     };
 
     struct Color
@@ -284,6 +303,7 @@ namespace  mini3d
         const Matrix &getMatrix() const override {
             return perspectiveMatrix;
         }
+		void setLockAt(const vector4& eye, const vector4& at, const vector4& up);
 
         void initMatrix() override {
 
@@ -383,11 +403,33 @@ namespace  mini3d
 	//设备接口
 	class Device {
 	public:
-		Device():lpData(nullptr){}
-		virtual UINT Create(int width, int height) = 0;
-		virtual UINT Frame(Color *frameBuffer) = 0;
-	protected:
-		void * lpData;
+		Device():screen_fb(nullptr){}
+
+		//创建设备
+		virtual UINT create(int width, int height,TCHAR title = 0);
+
+		virtual UINT close();
+
+		//更新buffer
+		virtual UINT frame(Color *frameBuffer = 0);
+
+		// 处理消息
+		void dispatch(void);
+
+		//消息回调
+		static LRESULT events(HWND, UINT, WPARAM, LPARAM);
+
+		unsigned char *screen_fb;		// frame buffer
+		
+		int screen_w, screen_h;
+		static int  screen_exit;
+		static int screen_mx, screen_my, screen_mb;
+		static int screen_keys[512];	// 当前键盘按下状态
+		static HWND screen_handle;		// 主窗口 HWND
+		static HDC screen_dc;			// 配套的 HDC
+		static HBITMAP screen_hb;		// DIB
+		static HBITMAP screen_ob;		// 老的 BITMAP
+		long screen_pitch = 0;
 	};
 
     //渲染器
@@ -398,18 +440,22 @@ namespace  mini3d
 
         Render(int width,int height)
         {
-            frameBuffer = new Color[width*height* sizeof(Color)];
+            //frameBuffer = new Color[width*height* sizeof(Color)];
             Zbuffer = new float[width*height* sizeof(float)];
             this->width = width;
             this->height = height;
+			CreateDevice();
         }
 
+		bool isRending()const { return !device->screen_exit; }
+		void preRending();
         void rending(Scene& scene,Camera& camera);
 
         Color _bkColor;
         Color _lineColor;
         RENDER_STATE _state;
     private:
+		//视锥体（frustum）裁剪
         static UINT check_cvv(const vector4& p);
 
         //设置像素
@@ -426,7 +472,7 @@ namespace  mini3d
 		void ClearFrame(Color c);
 
         //创建窗口设备
-		void CreateWindow();        
+		void CreateDevice();        
 
         //渲染到设备
 		void FrameToWindow();
@@ -435,7 +481,7 @@ namespace  mini3d
         int width,height;
         Color *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
-		void * device;
+		std::shared_ptr<Device> device;
     };
 }
 
