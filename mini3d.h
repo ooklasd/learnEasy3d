@@ -162,11 +162,28 @@ namespace  mini3d
         MatrixX(){
             m[0][0] = m[1][1] = m[2][2] = m[3][3] = 1;
         }
-        MatrixX(T m[]){
-            for (int i = 0; i < 16; ++i) {
-                this->m[i] = m[i];
+        MatrixX(T m[4][4]){
+            for (int y = 0; y < 16; ++y) {
+				for (size_t x = 0; x < 4; x++)
+				{
+					this->m[y][x] = m[y][x];
+				}
             }
         }
+
+		MatrixX(T value) {
+			for (int y = 0; y < 16; ++y) {
+				for (size_t x = 0; x < 4; x++)
+				{
+					this->m[y][x] = value;
+				}
+			}
+		}
+
+		MatrixX<T> Zero() const
+		{
+			return MatrixX<T>({});
+		}
 
         MatrixX<T> add(const MatrixX<T>& rhs)const
         {
@@ -193,12 +210,12 @@ namespace  mini3d
         MatrixX<T> mul(const MatrixX<T>& rhs)const
         {
             MatrixX<T> ret;
-            for (int i = 0; i < 4; ++i) {
-                for (int j = 0; j <4; ++j) {
-                    ret.m[i][j] = m[0][j] * rhs.m[i][0]
-                                + m[1][j] * rhs.m[i][1]
-                                + m[2][j] * rhs.m[i][2]
-                                + m[3][j] * rhs.m[i][3];
+            for (int y = 0; y < 4; ++y) {
+                for (int x = 0; x <4; ++x) {
+                    ret.m[y][x] = m[y][0] * rhs.m[0][x]
+								+ m[y][1] * rhs.m[1][x]
+								+ m[y][2] * rhs.m[2][x]
+								+ m[y][3] * rhs.m[3][x];
                 }
             }
             return ret;
@@ -249,10 +266,10 @@ namespace  mini3d
     {
         vectorX<T> ret;
         auto& mt = m.m;
-        ret.x = v.x * mt[0][0]+v.y * mt[0][1]+v.z * mt[0][2]+v.w * mt[0][3];
-        ret.y = v.x * mt[1][0]+v.y * mt[1][1]+v.z * mt[1][2]+v.w * mt[1][3];
-        ret.z = v.x * mt[2][0]+v.y * mt[2][1]+v.z * mt[2][2]+v.w * mt[2][3];
-        ret.w = v.x * mt[3][0]+v.y * mt[3][1]+v.z * mt[3][2]+v.w * mt[3][3];
+        ret.x = v.x * mt[0][0] + v.y * mt[1][0] + v.z * mt[2][0] + v.w * mt[3][0];
+		ret.y = v.x * mt[0][1] + v.y * mt[1][1] + v.z * mt[2][1] + v.w * mt[3][1];
+		ret.z = v.x * mt[0][2] + v.y * mt[1][2] + v.z * mt[2][2] + v.w * mt[3][2];
+		ret.w = v.x * mt[0][3] + v.y * mt[1][3] + v.z * mt[2][3] + v.w * mt[3][3];
         return ret;
     }
 
@@ -298,6 +315,11 @@ namespace  mini3d
             this->angle = angle;
             this->znear = znear;
             this->zfar = zfar;
+
+			setLockAt({1,0,0}, {0,1,0}, {0,0,1});
+
+			//透视变换视口
+			initPerMatrix();
         }
 
         const Matrix &getMatrix() const override {
@@ -306,8 +328,39 @@ namespace  mini3d
 		void setLockAt(const vector4& eye, const vector4& at, const vector4& up);
 
         void initMatrix() override {
+			
+			//设置视角
+			for (size_t j = 0; j < 3; j++)
+			{
+				rotateM.m[j][0] = eye[j];
+				rotateM.m[j][1] = at[j];
+				rotateM.m[j][2] = up[j];
+			}
 
+			//相机位置
+			positionM.m[3][0] = position[0];
+			positionM.m[3][1] = position[1];
+			positionM.m[3][2] = position[2];
+
+			//合并矩阵
+			perspectiveMatrix = rotateM*positionM*perspectiveM;
         }
+
+		void initPerMatrix()
+		{
+			perspectiveM = Matrix(0.0f);
+
+			auto& m = perspectiveM.m;
+			auto aspect = width / height;
+			auto fovy = angle;
+			float fax = 1.0f / (float)tan(fovy * 0.5f);
+
+			m[0][0] = (float)(fax / aspect);
+			m[1][1] = (float)(fax);
+			m[2][2] = zfar / (zfar - znear);
+			m[3][2] = -znear * zfar / (zfar - znear);
+			m[2][3] = 1;
+		}
 
         void setPosition(const vector4& pos)
         {
@@ -317,8 +370,11 @@ namespace  mini3d
         }
 
         float width, height,  angle;
-        vector4 look,up,right,position;
+        vector4 eye,at, up,position;
         Matrix perspectiveMatrix;
+
+	private:
+		Matrix rotateM, positionM, perspectiveM;
     };
 
 
@@ -441,7 +497,7 @@ namespace  mini3d
         Render(int width,int height)
         {
             //frameBuffer = new Color[width*height* sizeof(Color)];
-            Zbuffer = new float[width*height* sizeof(float)];
+            Zbuffer = new float[width*height* sizeof(float)];			
             this->width = width;
             this->height = height;
 			CreateDevice();
@@ -459,7 +515,7 @@ namespace  mini3d
         static UINT check_cvv(const vector4& p);
 
         //设置像素
-        void setPixel(int x,int y,float w,Color color);
+        void setPixel(int x,int y,float w,const Color& color);
 
         //画线
         void drawline(vector4 be,vector4 ed);

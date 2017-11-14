@@ -79,15 +79,24 @@ void Scene::init() {
     obj.faces.push_back({2,3,7});
     obj.faces.push_back({2,7,6});
 
+	auto& m = worldMatrix.m;
 
+	//Z方向移动0.5
+	m[3][2] = 0.5;
 }
 
 void mini3d::Render::preRending()
 {
 	device->dispatch();
+
+	ClearFrame(_bkColor);
+
 }
 
 void Render::rending(Scene &scene, Camera &camera) {
+
+	camera.initMatrix();
+
     auto obj = scene.obj;
 
     auto transform = scene.worldMatrix*camera.getMatrix();
@@ -102,9 +111,9 @@ void Render::rending(Scene &scene, Camera &camera) {
         p2 = p2 * transform;
         p3 = p3 * transform;
 
-        if(check_cvv(p1) == 0) return;
-        if(check_cvv(p2) == 0) return;
-        if(check_cvv(p3) == 0) return;
+        if(check_cvv(p1) == 0) continue;
+        if(check_cvv(p2) == 0) continue;
+        if(check_cvv(p3) == 0) continue;
 
         //归一化
 
@@ -138,10 +147,10 @@ void Render::rending(Scene &scene, Camera &camera) {
 
 }
 
-void Render::setPixel(int x, int y, float w, Color color) {
+void Render::setPixel(int x, int y, float w, const Color& color) {
     w = 1/w;
     auto& zbuffer = Zbuffer[x+y*width];
-    if(x>=0 && x<width && y>=0 && y<height && zbuffer > w)
+    if(x>=0 && x<width && y>=0 && y<height && zbuffer >= w)
     {
         zbuffer = w;
         frameBuffer[x+y*width] = color;
@@ -150,7 +159,7 @@ void Render::setPixel(int x, int y, float w, Color color) {
 
 void Render::drawline(vector4 be, vector4 ed) {
     auto sub = ed - be;
-    float dxChange = sub.y == 0?0:sub.x/sub.y;
+    float dxChange = sub.y == 0? sub.x :sub.x/sub.y;
     float dxSum = 0;
     int curX = (int)(be.x+0.5);
 
@@ -517,10 +526,7 @@ LRESULT mini3d::Device::events(HWND hWnd, UINT msg,WPARAM wParam, LPARAM lParam)
 
 void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & at, const vector4 & up)
 {
-	for (size_t j = 0; j < 3; j++)
-	{
-		perspectiveMatrix.m[0][j] = eye[j];
-		perspectiveMatrix.m[1][j] = at[j];
-		perspectiveMatrix.m[2][j] = up[j];
-	}
+	this->eye = eye;
+	this->at = at;
+	this->up = up;
 }

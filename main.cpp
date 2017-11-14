@@ -15,13 +15,6 @@ using namespace std;
 using namespace mini3d;
 
 
-
-//=====================================================================
-// Win32 窗口及图形绘制：为 device 提供一个 DibSection 的 FB
-//=====================================================================
-
-
-
 int main(int argc, const char * argv[]) {
     int screenWidth = 800,screenHeight = 500;
     Scene scene;
@@ -29,7 +22,7 @@ int main(int argc, const char * argv[]) {
     PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,10,500);
     Render render(camera.width,camera.height);
 
-    camera.setPosition({0, 30, 50});
+    camera.setPosition({0, 0, 0.5});
 
 	while (render.isRending())
 	{
