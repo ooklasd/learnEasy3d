@@ -145,6 +145,8 @@ void Render::rending(Scene &scene, Camera &camera) {
         }
     }
 
+	FrameToWindow();
+
 }
 
 void Render::setPixel(int x, int y, float w, const Color& color) {
@@ -498,7 +500,6 @@ UINT mini3d::Device::frame(Color * frameBuffer)
 	HDC hDC = GetDC(screen_handle);
 	BitBlt(hDC, 0, 0, screen_w, screen_h, screen_dc, 0, 0, SRCCOPY);
 	ReleaseDC(screen_handle, hDC);
-	dispatch();
 	return 0;
 }
 

@@ -28,6 +28,7 @@ int main(int argc, const char * argv[]) {
 	{
 		render.preRending();
 		render.rending(scene, camera);
+		
 		Sleep(10);
 	}
 

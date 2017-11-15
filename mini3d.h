@@ -318,8 +318,15 @@ namespace  mini3d
 
 			setLockAt({1,0,0}, {0,1,0}, {0,0,1});
 
-			//透视变换视口
+			//透视变换矩阵
 			initPerMatrix();
+
+			//视口变换矩阵
+			viewProtM.m[0][0] = width*0.5;
+			viewProtM.m[1][1] = height*0.5;
+
+			viewProtM.m[3][0] = width*0.5;
+			viewProtM.m[3][1] = height*0.5;
         }
 
         const Matrix &getMatrix() const override {
@@ -343,7 +350,7 @@ namespace  mini3d
 			positionM.m[3][2] = position[2];
 
 			//合并矩阵
-			perspectiveMatrix = rotateM*positionM*perspectiveM;
+			perspectiveMatrix = rotateM*positionM*perspectiveM*viewProtM;
         }
 
 		void initPerMatrix()
@@ -374,7 +381,7 @@ namespace  mini3d
         Matrix perspectiveMatrix;
 
 	private:
-		Matrix rotateM, positionM, perspectiveM;
+		Matrix rotateM, positionM, perspectiveM,viewProtM;
     };
 
 
@@ -500,6 +507,7 @@ namespace  mini3d
             Zbuffer = new float[width*height* sizeof(float)];			
             this->width = width;
             this->height = height;
+			_bkColor.value.color = 0;
 			CreateDevice();
         }
 
