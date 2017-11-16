@@ -330,7 +330,7 @@ namespace  mini3d
         }
 
         const Matrix &getMatrix() const override {
-            return perspectiveMatrix;
+            return transfromMatrix;
         }
 		void setLockAt(const vector4& eye, const vector4& at, const vector4& up);
 
@@ -350,7 +350,11 @@ namespace  mini3d
 			positionM.m[3][2] = position[2];
 
 			//合并矩阵
-			perspectiveMatrix = rotateM*positionM*perspectiveM*viewProtM;
+			transfromMatrix = rotateM*positionM;
+			transfromMatrix = transfromMatrix*perspectiveM;
+			transfromMatrix = transfromMatrix*viewProtM;
+
+			//transfromMatrix = rotateM*positionM*perspectiveM*viewProtM;
         }
 
 		void initPerMatrix()
@@ -378,7 +382,7 @@ namespace  mini3d
 
         float width, height,  angle;
         vector4 eye,at, up,position;
-        Matrix perspectiveMatrix;
+        Matrix transfromMatrix;
 
 	private:
 		Matrix rotateM, positionM, perspectiveM,viewProtM;

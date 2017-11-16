@@ -82,7 +82,7 @@ void Scene::init() {
 	auto& m = worldMatrix.m;
 
 	//Z方向移动0.5
-	m[3][2] = 0.5;
+	//m[3][2] = 0.5;
 }
 
 void mini3d::Render::preRending()
@@ -150,6 +150,9 @@ void Render::rending(Scene &scene, Camera &camera) {
 }
 
 void Render::setPixel(int x, int y, float w, const Color& color) {
+	if (x < 0 || x >= width) return;
+	if (y < 0 || y >= height) return;
+
     w = 1/w;
     auto& zbuffer = Zbuffer[x+y*width];
     if(x>=0 && x<width && y>=0 && y<height && zbuffer >= w)
@@ -160,14 +163,20 @@ void Render::setPixel(int x, int y, float w, const Color& color) {
 }
 
 void Render::drawline(vector4 be, vector4 ed) {
+
+	if (be.y > ed.y)
+	{
+		std::swap(be, ed);
+	}
     auto sub = ed - be;
-    float dxChange = sub.y == 0? sub.x :sub.x/sub.y;
+    float dxChange = fabs(sub.y) < 0.0001? sub.x :sub.x/sub.y;
     float dxSum = 0;
     int curX = (int)(be.x+0.5);
-
+	ed.y += 0.5;
     for (int y = (int)(be.y+0.5); y <= ed.y; ++y) {
+
         dxSum+= dxChange;
-        if(dxSum < 1)
+        if(-1< dxSum && dxSum < 1)
         {
             setPixel(curX, y, 1, _lineColor);
         }
@@ -179,6 +188,13 @@ void Render::drawline(vector4 be, vector4 ed) {
                 --dxSum;
                 ++curX;
             }
+
+			while (dxSum<=-1)
+			{
+				setPixel(curX, y, 1, _lineColor);
+				++dxSum;
+				--curX;
+			}
         }
     }
 }
@@ -245,13 +261,13 @@ void Render::drawline(const vertex& be, const vertex& ed) {
 
 void Render::ClearFrame(Color c)
 {
-	for (int y = 0; y < height; y++)
+	memset(frameBuffer, (int)c.value.color, width*height * sizeof(Color));
+	for (size_t y = 0; y < height; y++)
 	{
-		int offset = y * width;
+		int offset = y*width;
 		for (size_t x = 0; x < width; x++)
 		{
-            frameBuffer[x + offset] = c;
-            Zbuffer[x + offset] = 1;
+			Zbuffer[offset + x] = 1;
 		}
 	}
 }
