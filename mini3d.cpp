@@ -451,7 +451,7 @@ UINT mini3d::Device::create(int width, int height, TCHAR title )
 	WNDCLASS wc = { CS_BYTEALIGNCLIENT, (WNDPROC)(&mini3d::Device::events), 0, 0, 0,
 		NULL, NULL, NULL, NULL, ("SCREEN3.1415926") };
 	BITMAPINFO bi = { { sizeof(BITMAPINFOHEADER), w, -h, 1, 32, BI_RGB,
-		w * h * 4, 0, 0, 0, 0 } };
+		(DWORD)(w * h * 4), 0, 0, 0, 0 } };
 	RECT rect = { 0, 0, w, h };
 	int wx, wy, sx, sy;
 	LPVOID ptr;

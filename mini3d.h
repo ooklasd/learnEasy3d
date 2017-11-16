@@ -18,7 +18,7 @@ namespace  mini3d
 
     // 计算插值：t 为 [0, 1] 之间的数值
     template <typename T>
-    T interp(T x1, T x2, float t) { return x1 + (x2 - x1) * t; }
+    T interp(T x1, T x2, float t) { return x1 + (T)((x2 - x1) * t); }
 
 
     template <typename T>
@@ -123,7 +123,7 @@ namespace  mini3d
 		template<typename TValue>
         vectorX<T> operator /(TValue v)const
         {
-            return scale(1/v);
+            return scale((float)(1.0/v));
         }	
 
 		T& operator[](size_t index)
