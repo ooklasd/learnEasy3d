@@ -23,12 +23,43 @@ int main(int argc, const char * argv[]) {
     Render render(camera.width,camera.height);
 
     camera.setPosition({-0.6f, 0.3f,1.5f});
-
+	render._state = Render::colorRender;
 	while (render.isRending())
 	{
+		//响应按钮
+		auto& key = render.device->screen_keys;		
+		if (key['w'] || key['W'])
+		{
+			render._state = (Render::RENDER_STATE)((int)render._state + 1);
+			if (render._state > 2) render._state = Render::wireframeRender;
+			key['w'] = key['W'] = 0;
+		}
+
+		if (key[VK_LEFT])
+		{
+			camera.position.x -= 0.05;
+			key[VK_LEFT] = 0;
+		}
+
+		if (key[VK_RIGHT])
+		{
+			camera.position.x += 0.05;
+			key[VK_RIGHT] = 0;
+		}
+
+		if (key[VK_DOWN])
+		{
+			camera.position.y += 0.05;
+			key[VK_DOWN] = 0;
+		}
+		if (key[VK_UP])
+		{
+			camera.position.y -= 0.05;
+			key[VK_UP] = 0;
+		}
+
 		render.preRending();
 		render.rending(scene, camera);
-		
 		Sleep(10);
 	}
 

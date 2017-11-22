@@ -57,7 +57,7 @@ namespace  mini3d
 
         vectorX<T> scale(float v)const
         {
-            return vectorX<T>(x/v,y/v,z/v,1);
+            return vectorX<T>(x*v,y*v,z*v,1);
         }
 
         vectorX<T> normalize()const
@@ -124,7 +124,13 @@ namespace  mini3d
         vectorX<T> operator /(TValue v)const
         {
             return scale((float)(1.0/v));
-        }	
+        }
+		template<typename TValue>
+		vectorX<T> operator *(TValue v)const
+		{
+			return scale(v);
+		}
+		
 
 		T& operator[](size_t index)
 		{
@@ -420,6 +426,8 @@ namespace  mini3d
         {
             color = (float)obj.colors[index];
             UV = obj.uv[index];
+			pos = pos2D;
+			this->w = w;
         }
         void normalizeSelf();
         vertex normalize()const;
@@ -435,7 +443,7 @@ namespace  mini3d
         Triangle():top(0),bottom(0){}
         vertex v[3];
         float top,bottom;
-        void computeTopBotton();
+        void computeTopBottom();
         void sortVectex();
         std::vector<Triangle> makeTwo();
         bool isFlat();
@@ -503,7 +511,7 @@ namespace  mini3d
     class Render
     {
     public:
-        enum RENDER_STATE{wireframeRender,colorRender,textureRender};
+        enum  RENDER_STATE:int {wireframeRender,colorRender,textureRender};
 
         Render(int width,int height)
         {
@@ -516,12 +524,18 @@ namespace  mini3d
         }
 
 		bool isRending()const { return !device->screen_exit; }
+
+		//渲染前触发
 		void preRending();
+
+		//渲染中
         void rending(Scene& scene,Camera& camera);
 
         Color _bkColor;
         Color _lineColor;
         RENDER_STATE _state;
+
+		std::shared_ptr<Device> device;
     private:
 		//视锥体（frustum）裁剪
         static UINT check_cvv(const vector4& p);
@@ -549,7 +563,6 @@ namespace  mini3d
         int width,height;
         Color *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
-		std::shared_ptr<Device> device;
     };
 }
 

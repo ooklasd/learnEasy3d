@@ -50,8 +50,19 @@ void Scene::init() {
     obj.points.push_back({1,1,1});
     obj.points.push_back({0,1,1});
 
+	//UV
+	obj.uv.push_back({ 0,0,0 });
+	obj.uv.push_back({ 1,0,0 });
+	obj.uv.push_back({ 1,1,0 });
+	obj.uv.push_back({ 0,1,0 });
+
+	obj.uv.push_back({ 1,1,0 });
+	obj.uv.push_back({ 2,1,0 });
+	obj.uv.push_back({ 2,2,0 });
+	obj.uv.push_back({ 1,2,0 });
+
     for (int i = 0; i < 8; ++i) {
-        obj.colors.push_back(interp(0,0xffffff,i/8));
+        obj.colors.push_back(interp(0,0xffffff,i/8.0));
     }
 
     //按照定点索引，制造三角形面
@@ -81,16 +92,19 @@ void Scene::init() {
 
 	auto& m = worldMatrix.m;
 
+	
+
+
 	//Z方向移动0.5
 	//m[3][2] = 0.5;
 }
 
 void mini3d::Render::preRending()
 {
+	ClearFrame(_bkColor);
 	device->dispatch();
 
-	ClearFrame(_bkColor);
-
+	
 }
 
 void Render::rending(Scene &scene, Camera &camera) {
@@ -138,6 +152,12 @@ void Render::rending(Scene &scene, Camera &camera) {
             //生成二维（屏幕）三角形
             //分解三角形
             auto triangleV = triangle.makeTwo();
+
+			for (auto it = triangleV.begin(); it < triangleV.end(); it++)
+			{
+				it->sortVectex();
+				it->computeTopBottom();
+			}
 
             //渲染三角形
             if(triangleV.size()>=1) drawTriangle(triangleV[0]);
@@ -218,16 +238,18 @@ void Render::drawTriangle(const Triangle &t) {
         bottomV[1] = t.v[2];
     }
 
-    assert(topV->pos.y == topV->pos.y);
-    assert(bottomV->pos.y == bottomV->pos.y);
+    assert(topV[0].pos.y == topV[1].pos.y);
+	assert(bottomV[0].pos.y == bottomV[1].pos.y);
+	assert(top < bottom);
 
     //中间向两边
     for (int y = top; y <= bottom; ++y) {
         if(y>=0 && y<width)
         {
             //边缘插值
-            auto leftEdge = topV[0].interp(bottomV[1], y/(bottom-top));
-            auto rightEdge = topV[0].interp(bottomV[1], y/(bottom-top));
+			float interp = (y - top)*1.0 / (bottom - top);
+            auto leftEdge = topV[0].interp(bottomV[0], interp);
+            auto rightEdge = topV[1].interp(bottomV[1], interp);
 
             //直线描写
             drawline(leftEdge,rightEdge);
@@ -339,11 +361,14 @@ vertex vertex::normalize() const {
 }
 
 LineScaner::LineScaner(const vertex &v1, const vertex &v2, int stepSize) {
-    stepValue = v2.sub(v1);
-    stepValue.pos = stepValue.pos / stepSize;
-    stepValue.UV = stepValue.UV / stepSize;
-    stepValue.color /= stepSize;
-    stepValue.w  /= stepSize;
+	if (stepSize > 0)
+	{
+		stepValue = v2.sub(v1);
+		stepValue.pos = stepValue.pos / stepSize;
+		stepValue.UV = stepValue.UV / stepSize;
+		stepValue.color /= stepSize;
+		stepValue.w /= stepSize;
+	}	
 }
 
 bool LineScaner::step(vertex &v, int num) const{
@@ -353,16 +378,16 @@ bool LineScaner::step(vertex &v, int num) const{
     return num>0;
 }
 
-void Triangle::computeTopBotton() {
+void Triangle::computeTopBottom() {
     sortVectex();
-    top = v[0].pos.y;
-    bottom = v[2].pos.y;
+	bottom  = v[2].pos.y;
+	 top = v[0].pos.y;
 }
 
 void Triangle::sortVectex() {
-    if(v[0].pos.y <v[1].pos.y) std::swap(v[0], v[1]);
-    if(v[0].pos.y <v[2].pos.y) std::swap(v[0], v[2]);
-    if(v[1].pos.y <v[2].pos.y) std::swap(v[1], v[2]);
+    if(v[0].pos.y >v[1].pos.y) std::swap(v[0], v[1]);
+    if(v[0].pos.y >v[2].pos.y) std::swap(v[0], v[2]);
+    if(v[1].pos.y >v[2].pos.y) std::swap(v[1], v[2]);
 
 	if (v[0].pos.y == v[1].pos.y && v[0].pos.x > v[1].pos.x) std::swap(v[0], v[1]);
 	if (v[1].pos.y == v[2].pos.y && v[1].pos.x > v[2].pos.x) std::swap(v[1], v[2]);
