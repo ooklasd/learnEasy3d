@@ -18,9 +18,9 @@ namespace  mini3d
 
     // 计算插值：t 为 [0, 1] 之间的数值
     template <typename T>
-    T interp(T x1, T x2, float t) { return x1 + (T)((x2 - x1) * t); }
+    T interp(const T& x1, const T& x2, float t) { return x1 + (T)((x2 - x1) * t); }
 
-
+	
     template <typename T>
     class vectorX
     {
@@ -141,6 +141,8 @@ namespace  mini3d
 			case 2:return z;
 			case 3:return w;
 			}
+			static float v = 0.0f;
+			return v;
 		}
 
 		const T& operator[](size_t index)const
@@ -298,18 +300,54 @@ namespace  mini3d
     struct Color
     {
         Color(UINT c = 0xffffff){
-            value.color = c;
-        }
+			for (size_t i = 0; i < 4; i++)
+			{
+				value.color[4 - i - 1] = (c & 0xff) / 255.0;
+				c = c >> 8;
+			}
+        }		
+
         union {
-            unsigned int color;
+            float color[4];
             struct aRGB{
-                char a,r,g,b;
+                float a,r,g,b;
             };
         }value;
 
-        operator UINT ()const{return value.color;}
-        operator float ()const{return (float)value.color;}
+        operator UINT ()const{
+			UINT c = 0;
+			for (size_t i = 0; i < 4; i++)
+			{
+				c += value.color[4 - i - 1] * 255.0;
+				c = c << 8;
+			}
+			return c;
+		}
+		float operator[](size_t index) const { return value.color[index]; }
+		float& operator[](size_t index) { return value.color[index]; }
+		const Color& operator /= (float v) {
+			for(auto& it: value.color)
+			{
+				it /= v;
+			}
+			return *this;
+		}
+
+		Color interp(const Color& r, float t) const
+		{
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = mini3d::interp((*this)[i], r[i], t);
+			}
+			return ret;
+		}
     };
+
+
+	
+
+
 
     //透视相机
     class PerspectiveCamera:public Camera
@@ -421,11 +459,11 @@ namespace  mini3d
         vector4 pos;
         vector4 UV;
         float w;
-        float color;
+        Color color;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
-            color = (float)obj.colors[index];
-            UV = obj.uv[index];
+            color = (float)obj.colors[index]*w;
+            UV = obj.uv[index]*w;
 			pos = pos2D;
 			this->w = w;
         }
@@ -519,7 +557,7 @@ namespace  mini3d
             Zbuffer = new float[width*height* sizeof(float)];			
             this->width = width;
             this->height = height;
-			_bkColor.value.color = 0;
+			_bkColor = 0;
 			CreateDevice();
         }
 
@@ -561,7 +599,7 @@ namespace  mini3d
 
     private:
         int width,height;
-        Color *frameBuffer;
+        UINT *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
     };
 }

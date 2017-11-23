@@ -29,6 +29,7 @@ int CMID(int x, int min, int max) {
     return (x < min)? min : ((x > max)? max : x);
 }
 
+
 Object3D::Object3D() {
     _textrue = nullptr;
 
@@ -149,7 +150,7 @@ void Render::rending(Scene &scene, Camera &camera) {
             triangle.v[0].set(obj, face.index[0],p2D_1,p1.w);
             triangle.v[1].set(obj, face.index[1],p2D_2,p2.w);
             triangle.v[2].set(obj, face.index[2],p2D_3,p3.w);
-            //生成二维（屏幕）三角形
+
             //分解三角形
             auto triangleV = triangle.makeTwo();
 
@@ -175,7 +176,7 @@ void Render::setPixel(int x, int y, float w, const Color& color) {
 
     w = 1/w;
     auto& zbuffer = Zbuffer[x+y*width];
-    if(x>=0 && x<width && y>=0 && y<height && zbuffer >= w)
+    if(x>=0 && x<width && y>=0 && y<height && zbuffer <= w)
     {
         zbuffer = w;
         frameBuffer[x+y*width] = color;
@@ -220,8 +221,10 @@ void Render::drawline(vector4 be, vector4 ed) {
 }
 
 void Render::drawTriangle(const Triangle &t) {
+
     int top = (int)(t.top+0.5);
     int bottom = (int)(t.bottom+0.5);
+	if (top == bottom) return;
 
     //平底三角形转化为平行梯形
     vertex topV[2],bottomV[2];
@@ -270,7 +273,7 @@ void Render::drawline(const vertex& be, const vertex& ed) {
         {
             //描写当前点的颜色
             float w = 1/curPoint.w;
-            if(zb[x] > w)
+            if(zb[x] < w)
             {
                 zb[x] = w;
                 auto p = curPoint.normalize();
@@ -283,13 +286,13 @@ void Render::drawline(const vertex& be, const vertex& ed) {
 
 void Render::ClearFrame(Color c)
 {
-	memset(frameBuffer, (int)c.value.color, width*height * sizeof(Color));
+	memset(frameBuffer, c, width*height * sizeof(UINT));
 	for (size_t y = 0; y < height; y++)
 	{
 		int offset = y*width;
 		for (size_t x = 0; x < width; x++)
 		{
-			Zbuffer[offset + x] = 1;
+			Zbuffer[offset + x] = 0;
 		}
 	}
 }
@@ -298,7 +301,7 @@ void mini3d::Render::CreateDevice()
 {
 	device = std::shared_ptr<Device>(new Device());
 	device->create(width, height);
-	frameBuffer = (Color*)(device->screen_fb);
+	frameBuffer = (UINT*)device->screen_fb;
 }
 
 
@@ -341,7 +344,7 @@ vertex vertex::interp(const vertex& rhs, float t) {
     ret.pos = pos.interp(rhs.pos, t);
     ret.UV = UV.interp(rhs.UV, t);
     ret.w = mini3d::interp(w,rhs.w, t);
-    ret.color = mini3d::interp(color,rhs.color,t);
+    ret.color = color.interp(rhs.color,t);
     return std::move(ret);
 }
 

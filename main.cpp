@@ -58,6 +58,8 @@ int main(int argc, const char * argv[]) {
 			key[VK_UP] = 0;
 		}
 
+		if (key[VK_ESCAPE]) break;
+
 		render.preRending();
 		render.rending(scene, camera);
 		Sleep(10);
