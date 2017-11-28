@@ -318,8 +318,9 @@ namespace  mini3d
 			UINT c = 0;
 			for (size_t i = 0; i < 4; i++)
 			{
-				c += value.color[4 - i - 1] * 255.0;
 				c = c << 8;
+				UINT v = ((UINT)(value.color[i] * 255.0));
+				c = c | v;
 			}
 			return c;
 		}
@@ -331,6 +332,20 @@ namespace  mini3d
 				it /= v;
 			}
 			return *this;
+		}
+
+		const Color& operator *= (float v) {
+			for (auto& it : value.color)
+			{
+				it *= v;
+			}
+			return *this;
+		}
+
+		Color operator * (float v)const {
+			Color ret = *this;
+			ret *= v;
+			return std::move(ret);
 		}
 
 		Color interp(const Color& r, float t) const
@@ -462,7 +477,7 @@ namespace  mini3d
         Color color;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
-            color = (float)obj.colors[index]*w;
+            color = obj.colors[index]*w;
             UV = obj.uv[index]*w;
 			pos = pos2D;
 			this->w = w;

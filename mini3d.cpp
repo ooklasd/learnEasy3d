@@ -247,7 +247,7 @@ void Render::drawTriangle(const Triangle &t) {
 
     //中间向两边
     for (int y = top; y <= bottom; ++y) {
-        if(y>=0 && y<width)
+        if(y>=0 && y<height)
         {
             //边缘插值
 			float interp = (y - top)*1.0 / (bottom - top);
@@ -335,7 +335,11 @@ vertex vertex::sub(const vertex & rhs)const {
     ret.pos = pos - rhs.pos;
     ret.UV = UV - rhs.UV;
     ret.w = w - rhs.w;
-    ret.color = color - rhs.color;
+	for (size_t i = 0; i < 4; i++)
+	{
+		ret.color[i] = color[i] - rhs.color[i];
+
+	}
     return std::move(ret);
 }
 
@@ -427,6 +431,9 @@ std::vector<Triangle> Triangle::makeTwo() {
 
 	vertex middle = v[0].interp(v[2], dy01 / dy02);
 
+	//中间点的Y相等
+	middle.pos.y = v[1].pos.y;
+
 	if (k1 == k2)
 	{
 		return std::move(ret);
@@ -477,7 +484,7 @@ UINT mini3d::Device::create(int width, int height, TCHAR title )
 	auto w = width;
 	auto h = height;
 	WNDCLASS wc = { CS_BYTEALIGNCLIENT, (WNDPROC)(&mini3d::Device::events), 0, 0, 0,
-		NULL, NULL, NULL, NULL, ("SCREEN3.1415926") };
+		NULL, NULL, NULL, NULL, ("SCREEN") };
 	BITMAPINFO bi = { { sizeof(BITMAPINFOHEADER), w, -h, 1, 32, BI_RGB,
 		(DWORD)(w * h * 4), 0, 0, 0, 0 } };
 	RECT rect = { 0, 0, w, h };
@@ -492,7 +499,7 @@ UINT mini3d::Device::create(int width, int height, TCHAR title )
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	if (!RegisterClass(&wc)) return -1;
 
-	screen_handle = CreateWindow(("SCREEN3.1415926"), 0,
+	screen_handle = CreateWindow(("SCREEN"), 0,
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 		0, 0, 0, 0, NULL, NULL, wc.hInstance, NULL);
 	if (screen_handle == NULL) return -2;
