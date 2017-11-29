@@ -18,9 +18,9 @@ namespace  mini3d
 
     // 计算插值：t 为 [0, 1] 之间的数值
     template <typename T>
-    T interp(T x1, T x2, float t) { return x1 + (T)((x2 - x1) * t); }
+    T interp(const T& x1, const T& x2, float t) { return x1 + (T)((x2 - x1) * t); }
 
-
+	
     template <typename T>
     class vectorX
     {
@@ -57,7 +57,7 @@ namespace  mini3d
 
         vectorX<T> scale(float v)const
         {
-            return vectorX<T>(x/v,y/v,z/v,1);
+            return vectorX<T>(x*v,y*v,z*v,1);
         }
 
         vectorX<T> normalize()const
@@ -124,7 +124,13 @@ namespace  mini3d
         vectorX<T> operator /(TValue v)const
         {
             return scale((float)(1.0/v));
-        }	
+        }
+		template<typename TValue>
+		vectorX<T> operator *(TValue v)const
+		{
+			return scale(v);
+		}
+		
 
 		T& operator[](size_t index)
 		{
@@ -135,6 +141,8 @@ namespace  mini3d
 			case 2:return z;
 			case 3:return w;
 			}
+			static float v = 0.0f;
+			return v;
 		}
 
 		const T& operator[](size_t index)const
@@ -292,18 +300,94 @@ namespace  mini3d
     struct Color
     {
         Color(UINT c = 0xffffff){
-            value.color = c;
-        }
+			for (size_t i = 0; i < 4; i++)
+			{
+				value.color[3-i] = (c & 0xff) / 255.0;
+				c = c >> 8;
+			}
+        }	
+		Color(float r, float g, float b, float a = 0) {
+			value.aRGB.a = a;
+			value.aRGB.r = r;
+			value.aRGB.g = g;
+			value.aRGB.b = b;
+		}
+
         union {
-            unsigned int color;
-            struct aRGB{
-                char a,r,g,b;
+            float color[4];
+            struct S_aRGB{
+                float a,r,g,b;
             };
+			S_aRGB aRGB;
         }value;
 
-        operator UINT ()const{return value.color;}
-        operator float ()const{return (float)value.color;}
+        operator UINT ()const{
+			UINT c = 0;
+			for (size_t i = 0; i < 4; i++)
+			{
+				c = c << 8;
+				UINT v = ((UINT)(value.color[i] * 255.0));
+				c = c | v;
+			}
+			return c;
+		}
+		float operator[](size_t index) const { return value.color[index]; }
+		float& operator[](size_t index) { return value.color[index]; }
+		const Color& operator /= (float v) {
+			for(auto& it: value.color)
+			{
+				it /= v;
+			}
+			return *this;
+		}
+
+		const Color& operator *= (float v) {
+			for (auto& it : value.color)
+			{
+				it *= v;
+			}
+			return *this;
+		}
+
+		Color operator * (float v)const {
+			Color ret = *this;
+			ret *= v;
+			return std::move(ret);
+		}
+
+		Color operator + (const Color& vrhs)const {
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = (*this)[i] + vrhs[i];
+			}
+			return ret;
+		}
+
+		Color operator - (const Color& vrhs)const {
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = (*this)[i] - vrhs[i];
+			}
+			return ret;
+		}
+
+		Color interp(const Color& r, float t) const
+		{
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = mini3d::interp((*this)[i], r[i], t);
+			}
+			return ret;
+		}
     };
+
+
+	
+
+
 
     //透视相机
     class PerspectiveCamera:public Camera
@@ -315,8 +399,6 @@ namespace  mini3d
             this->angle = angle;
             this->znear = znear;
             this->zfar = zfar;
-
-			setLockAt({1,0,0}, {0,1,0}, {0,0,1});
 
 			//透视变换矩阵
 			initPerMatrix();
@@ -332,17 +414,21 @@ namespace  mini3d
         const Matrix &getMatrix() const override {
             return transfromMatrix;
         }
-		void setLockAt(const vector4& eye, const vector4& at, const vector4& up);
+		void setLockAt(const vector4& eye, const vector4 & lookat, const vector4& up);
 
         void initMatrix() override {
-			
+
+			eye.normalize();
+			at.normalize();
+			up.normalize();
+
 			//设置视角
-			for (size_t j = 0; j < 3; j++)
+			/*for (size_t j = 0; j < 3; j++)
 			{
 				rotateM.m[j][0] = eye[j];
 				rotateM.m[j][1] = at[j];
 				rotateM.m[j][2] = up[j];
-			}
+			}*/
 
 			//相机位置
 			positionM.m[3][0] = position[0];
@@ -415,11 +501,13 @@ namespace  mini3d
         vector4 pos;
         vector4 UV;
         float w;
-        float color;
+        Color color;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
-            color = (float)obj.colors[index];
-            UV = obj.uv[index];
+            color = obj.colors[index]*w;
+            UV = obj.uv[index]*w;
+			pos = pos2D;
+			this->w = w;
         }
         void normalizeSelf();
         vertex normalize()const;
@@ -435,7 +523,7 @@ namespace  mini3d
         Triangle():top(0),bottom(0){}
         vertex v[3];
         float top,bottom;
-        void computeTopBotton();
+        void computeTopBottom();
         void sortVectex();
         std::vector<Triangle> makeTwo();
         bool isFlat();
@@ -503,7 +591,7 @@ namespace  mini3d
     class Render
     {
     public:
-        enum RENDER_STATE{wireframeRender,colorRender,textureRender};
+        enum  RENDER_STATE:int {wireframeRender,colorRender,textureRender};
 
         Render(int width,int height)
         {
@@ -511,17 +599,23 @@ namespace  mini3d
             Zbuffer = new float[width*height* sizeof(float)];			
             this->width = width;
             this->height = height;
-			_bkColor.value.color = 0;
+			_bkColor = 0;
 			CreateDevice();
         }
 
 		bool isRending()const { return !device->screen_exit; }
+
+		//渲染前触发
 		void preRending();
+
+		//渲染中
         void rending(Scene& scene,Camera& camera);
 
         Color _bkColor;
         Color _lineColor;
         RENDER_STATE _state;
+
+		std::shared_ptr<Device> device;
     private:
 		//视锥体（frustum）裁剪
         static UINT check_cvv(const vector4& p);
@@ -547,9 +641,8 @@ namespace  mini3d
 
     private:
         int width,height;
-        Color *frameBuffer;
+        UINT *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度
-		std::shared_ptr<Device> device;
     };
 }
 

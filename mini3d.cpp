@@ -29,6 +29,7 @@ int CMID(int x, int min, int max) {
     return (x < min)? min : ((x > max)? max : x);
 }
 
+
 Object3D::Object3D() {
     _textrue = nullptr;
 
@@ -50,9 +51,26 @@ void Scene::init() {
     obj.points.push_back({1,1,1});
     obj.points.push_back({0,1,1});
 
-    for (int i = 0; i < 8; ++i) {
-        obj.colors.push_back(interp(0,0xffffff,i/8));
-    }
+	//UV
+	obj.uv.push_back({ 0,0,0 });
+	obj.uv.push_back({ 1,0,0 });
+	obj.uv.push_back({ 1,1,0 });
+	obj.uv.push_back({ 0,1,0 });
+
+	obj.uv.push_back({ 1,1,0 });
+	obj.uv.push_back({ 2,1,0 });
+	obj.uv.push_back({ 2,2,0 });
+	obj.uv.push_back({ 1,2,0 });
+
+	obj.colors.push_back({ 0,0,0 });
+	obj.colors.push_back({ 0,0,1 });
+	obj.colors.push_back({ 0,1,0 });
+	obj.colors.push_back({ 0,1,1 });
+	obj.colors.push_back({ 1,0,0 });
+	obj.colors.push_back({ 1,0,1 });
+	obj.colors.push_back({ 1,1,1 });
+	obj.colors.push_back({ 0,0,0 });
+    
 
     //按照定点索引，制造三角形面
     //上面
@@ -81,16 +99,19 @@ void Scene::init() {
 
 	auto& m = worldMatrix.m;
 
+	
+
+
 	//Z方向移动0.5
 	//m[3][2] = 0.5;
 }
 
 void mini3d::Render::preRending()
 {
+	ClearFrame(_bkColor);
 	device->dispatch();
 
-	ClearFrame(_bkColor);
-
+	
 }
 
 void Render::rending(Scene &scene, Camera &camera) {
@@ -135,9 +156,15 @@ void Render::rending(Scene &scene, Camera &camera) {
             triangle.v[0].set(obj, face.index[0],p2D_1,p1.w);
             triangle.v[1].set(obj, face.index[1],p2D_2,p2.w);
             triangle.v[2].set(obj, face.index[2],p2D_3,p3.w);
-            //生成二维（屏幕）三角形
+
             //分解三角形
             auto triangleV = triangle.makeTwo();
+
+			for (auto it = triangleV.begin(); it < triangleV.end(); it++)
+			{
+				it->sortVectex();
+				it->computeTopBottom();
+			}
 
             //渲染三角形
             if(triangleV.size()>=1) drawTriangle(triangleV[0]);
@@ -155,7 +182,7 @@ void Render::setPixel(int x, int y, float w, const Color& color) {
 
     w = 1/w;
     auto& zbuffer = Zbuffer[x+y*width];
-    if(x>=0 && x<width && y>=0 && y<height && zbuffer >= w)
+    if(x>=0 && x<width && y>=0 && y<height && zbuffer <= w)
     {
         zbuffer = w;
         frameBuffer[x+y*width] = color;
@@ -200,8 +227,10 @@ void Render::drawline(vector4 be, vector4 ed) {
 }
 
 void Render::drawTriangle(const Triangle &t) {
+
     int top = (int)(t.top+0.5);
     int bottom = (int)(t.bottom+0.5);
+	if (top == bottom) return;
 
     //平底三角形转化为平行梯形
     vertex topV[2],bottomV[2];
@@ -218,16 +247,18 @@ void Render::drawTriangle(const Triangle &t) {
         bottomV[1] = t.v[2];
     }
 
-    assert(topV->pos.y == topV->pos.y);
-    assert(bottomV->pos.y == bottomV->pos.y);
+    assert(topV[0].pos.y == topV[1].pos.y);
+	assert(bottomV[0].pos.y == bottomV[1].pos.y);
+	assert(top < bottom);
 
     //中间向两边
     for (int y = top; y <= bottom; ++y) {
-        if(y>=0 && y<width)
+        if(y>=0 && y<height)
         {
             //边缘插值
-            auto leftEdge = topV[0].interp(bottomV[1], y/(bottom-top));
-            auto rightEdge = topV[0].interp(bottomV[1], y/(bottom-top));
+			float interp = (y - top)*1.0 / (bottom - top);
+            auto leftEdge = topV[0].interp(bottomV[0], interp);
+            auto rightEdge = topV[1].interp(bottomV[1], interp);
 
             //直线描写
             drawline(leftEdge,rightEdge);
@@ -236,8 +267,8 @@ void Render::drawTriangle(const Triangle &t) {
 }
 
 void Render::drawline(const vertex& be, const vertex& ed) {
-    auto fb = frameBuffer + (int)(be.pos.y+0.5)*width;
-    auto zb = Zbuffer + (int)(be.pos.y+0.5)*width;
+    auto fb = frameBuffer + (UINT)(be.pos.y+0.5)*width;
+    auto zb = Zbuffer + (UINT)(be.pos.y+0.5)*width;
 
     int beginx = (int)(be.pos.x+0.5);
     int endx = (int)(ed.pos.x+0.5);
@@ -248,7 +279,7 @@ void Render::drawline(const vertex& be, const vertex& ed) {
         {
             //描写当前点的颜色
             float w = 1/curPoint.w;
-            if(zb[x] > w)
+            if(zb[x] < w)
             {
                 zb[x] = w;
                 auto p = curPoint.normalize();
@@ -261,13 +292,13 @@ void Render::drawline(const vertex& be, const vertex& ed) {
 
 void Render::ClearFrame(Color c)
 {
-	memset(frameBuffer, (int)c.value.color, width*height * sizeof(Color));
+	memset(frameBuffer, c, width*height * sizeof(UINT));
 	for (size_t y = 0; y < height; y++)
 	{
 		int offset = y*width;
 		for (size_t x = 0; x < width; x++)
 		{
-			Zbuffer[offset + x] = 1;
+			Zbuffer[offset + x] = 0;
 		}
 	}
 }
@@ -276,7 +307,7 @@ void mini3d::Render::CreateDevice()
 {
 	device = std::shared_ptr<Device>(new Device());
 	device->create(width, height);
-	frameBuffer = (Color*)(device->screen_fb);
+	frameBuffer = (UINT*)device->screen_fb;
 }
 
 
@@ -310,7 +341,11 @@ vertex vertex::sub(const vertex & rhs)const {
     ret.pos = pos - rhs.pos;
     ret.UV = UV - rhs.UV;
     ret.w = w - rhs.w;
-    ret.color = color - rhs.color;
+	for (size_t i = 0; i < 4; i++)
+	{
+		ret.color[i] = color[i] - rhs.color[i];
+
+	}
     return std::move(ret);
 }
 
@@ -319,7 +354,7 @@ vertex vertex::interp(const vertex& rhs, float t) {
     ret.pos = pos.interp(rhs.pos, t);
     ret.UV = UV.interp(rhs.UV, t);
     ret.w = mini3d::interp(w,rhs.w, t);
-    ret.color = mini3d::interp(color,rhs.color,t);
+    ret.color = color.interp(rhs.color,t);
     return std::move(ret);
 }
 
@@ -328,6 +363,7 @@ vertex vertex::add(const vertex &rhs) const {
     ret.pos = pos + rhs.pos;
     ret.UV = UV + rhs.UV;
     ret.w = w + rhs.w;
+
     ret.color = color + rhs.color;
     return std::move(ret);
 }
@@ -339,11 +375,14 @@ vertex vertex::normalize() const {
 }
 
 LineScaner::LineScaner(const vertex &v1, const vertex &v2, int stepSize) {
-    stepValue = v2.sub(v1);
-    stepValue.pos = stepValue.pos / stepSize;
-    stepValue.UV = stepValue.UV / stepSize;
-    stepValue.color /= stepSize;
-    stepValue.w  /= stepSize;
+	if (stepSize > 0)
+	{
+		stepValue = v2.sub(v1);
+		stepValue.pos = stepValue.pos / stepSize;
+		stepValue.UV = stepValue.UV / stepSize;
+		stepValue.color /= stepSize;
+		stepValue.w /= stepSize;
+	}	
 }
 
 bool LineScaner::step(vertex &v, int num) const{
@@ -353,16 +392,16 @@ bool LineScaner::step(vertex &v, int num) const{
     return num>0;
 }
 
-void Triangle::computeTopBotton() {
+void Triangle::computeTopBottom() {
     sortVectex();
-    top = v[0].pos.y;
-    bottom = v[2].pos.y;
+	bottom  = v[2].pos.y;
+	 top = v[0].pos.y;
 }
 
 void Triangle::sortVectex() {
-    if(v[0].pos.y <v[1].pos.y) std::swap(v[0], v[1]);
-    if(v[0].pos.y <v[2].pos.y) std::swap(v[0], v[2]);
-    if(v[1].pos.y <v[2].pos.y) std::swap(v[1], v[2]);
+    if(v[0].pos.y >v[1].pos.y) std::swap(v[0], v[1]);
+    if(v[0].pos.y >v[2].pos.y) std::swap(v[0], v[2]);
+    if(v[1].pos.y >v[2].pos.y) std::swap(v[1], v[2]);
 
 	if (v[0].pos.y == v[1].pos.y && v[0].pos.x > v[1].pos.x) std::swap(v[0], v[1]);
 	if (v[1].pos.y == v[2].pos.y && v[1].pos.x > v[2].pos.x) std::swap(v[1], v[2]);
@@ -398,6 +437,9 @@ std::vector<Triangle> Triangle::makeTwo() {
 	auto dy02 = (v[0].pos.y - v[2].pos.y);
 
 	vertex middle = v[0].interp(v[2], dy01 / dy02);
+
+	//中间点的Y相等
+	middle.pos.y = v[1].pos.y;
 
 	if (k1 == k2)
 	{
@@ -449,7 +491,7 @@ UINT mini3d::Device::create(int width, int height, TCHAR title )
 	auto w = width;
 	auto h = height;
 	WNDCLASS wc = { CS_BYTEALIGNCLIENT, (WNDPROC)(&mini3d::Device::events), 0, 0, 0,
-		NULL, NULL, NULL, NULL, ("SCREEN3.1415926") };
+		NULL, NULL, NULL, NULL, ("SCREEN") };
 	BITMAPINFO bi = { { sizeof(BITMAPINFOHEADER), w, -h, 1, 32, BI_RGB,
 		(DWORD)(w * h * 4), 0, 0, 0, 0 } };
 	RECT rect = { 0, 0, w, h };
@@ -464,7 +506,7 @@ UINT mini3d::Device::create(int width, int height, TCHAR title )
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	if (!RegisterClass(&wc)) return -1;
 
-	screen_handle = CreateWindow(("SCREEN3.1415926"), 0,
+	screen_handle = CreateWindow(("SCREEN"), 0,
 		WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
 		0, 0, 0, 0, NULL, NULL, wc.hInstance, NULL);
 	if (screen_handle == NULL) return -2;
@@ -541,9 +583,22 @@ LRESULT mini3d::Device::events(HWND hWnd, UINT msg,WPARAM wParam, LPARAM lParam)
 }
 
 
-void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & at, const vector4 & up)
+void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & lookat, const vector4 & up)
 {
-	this->eye = eye;
-	this->at = at;
-	this->up = up;
+	auto n = lookat - eye;
+	n.normalize();
+	up.normalize();
+	auto u = up.cross(n);
+	u.normalize();
+
+	auto v = n.cross(u);
+	v.normalize();
+
+	rotateM.identity();
+	for (size_t j = 0; j < 3; j++)
+	{
+		rotateM.m[j][0] = u[j];
+		rotateM.m[j][1] = v[j];
+		rotateM.m[j][2] = n[j];
+	}
 }
