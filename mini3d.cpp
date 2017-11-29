@@ -62,9 +62,15 @@ void Scene::init() {
 	obj.uv.push_back({ 2,2,0 });
 	obj.uv.push_back({ 1,2,0 });
 
-    for (int i = 0; i < 8; ++i) {
-        obj.colors.push_back(interp(0,0xffffff,i/8.0));
-    }
+	obj.colors.push_back({ 0,0,0 });
+	obj.colors.push_back({ 0,0,1 });
+	obj.colors.push_back({ 0,1,0 });
+	obj.colors.push_back({ 0,1,1 });
+	obj.colors.push_back({ 1,0,0 });
+	obj.colors.push_back({ 1,0,1 });
+	obj.colors.push_back({ 1,1,1 });
+	obj.colors.push_back({ 0,0,0 });
+    
 
     //按照定点索引，制造三角形面
     //上面
@@ -261,8 +267,8 @@ void Render::drawTriangle(const Triangle &t) {
 }
 
 void Render::drawline(const vertex& be, const vertex& ed) {
-    auto fb = frameBuffer + (int)(be.pos.y+0.5)*width;
-    auto zb = Zbuffer + (int)(be.pos.y+0.5)*width;
+    auto fb = frameBuffer + (UINT)(be.pos.y+0.5)*width;
+    auto zb = Zbuffer + (UINT)(be.pos.y+0.5)*width;
 
     int beginx = (int)(be.pos.x+0.5);
     int endx = (int)(ed.pos.x+0.5);
@@ -357,6 +363,7 @@ vertex vertex::add(const vertex &rhs) const {
     ret.pos = pos + rhs.pos;
     ret.UV = UV + rhs.UV;
     ret.w = w + rhs.w;
+
     ret.color = color + rhs.color;
     return std::move(ret);
 }
@@ -576,9 +583,22 @@ LRESULT mini3d::Device::events(HWND hWnd, UINT msg,WPARAM wParam, LPARAM lParam)
 }
 
 
-void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & at, const vector4 & up)
+void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & lookat, const vector4 & up)
 {
-	this->eye = eye;
-	this->at = at;
-	this->up = up;
+	auto n = lookat - eye;
+	n.normalize();
+	up.normalize();
+	auto u = up.cross(n);
+	u.normalize();
+
+	auto v = n.cross(u);
+	v.normalize();
+
+	rotateM.identity();
+	for (size_t j = 0; j < 3; j++)
+	{
+		rotateM.m[j][0] = u[j];
+		rotateM.m[j][1] = v[j];
+		rotateM.m[j][2] = n[j];
+	}
 }

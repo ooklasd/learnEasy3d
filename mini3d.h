@@ -302,16 +302,23 @@ namespace  mini3d
         Color(UINT c = 0xffffff){
 			for (size_t i = 0; i < 4; i++)
 			{
-				value.color[4 - i - 1] = (c & 0xff) / 255.0;
+				value.color[3-i] = (c & 0xff) / 255.0;
 				c = c >> 8;
 			}
-        }		
+        }	
+		Color(float r, float g, float b, float a = 0) {
+			value.aRGB.a = a;
+			value.aRGB.r = r;
+			value.aRGB.g = g;
+			value.aRGB.b = b;
+		}
 
         union {
             float color[4];
-            struct aRGB{
+            struct S_aRGB{
                 float a,r,g,b;
             };
+			S_aRGB aRGB;
         }value;
 
         operator UINT ()const{
@@ -348,6 +355,24 @@ namespace  mini3d
 			return std::move(ret);
 		}
 
+		Color operator + (const Color& vrhs)const {
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = (*this)[i] + vrhs[i];
+			}
+			return ret;
+		}
+
+		Color operator - (const Color& vrhs)const {
+			Color ret;
+			for (size_t i = 0; i < 4; i++)
+			{
+				ret[i] = (*this)[i] - vrhs[i];
+			}
+			return ret;
+		}
+
 		Color interp(const Color& r, float t) const
 		{
 			Color ret;
@@ -375,8 +400,6 @@ namespace  mini3d
             this->znear = znear;
             this->zfar = zfar;
 
-			setLockAt({1,0,0}, {0,1,0}, {0,0,1});
-
 			//透视变换矩阵
 			initPerMatrix();
 
@@ -391,17 +414,21 @@ namespace  mini3d
         const Matrix &getMatrix() const override {
             return transfromMatrix;
         }
-		void setLockAt(const vector4& eye, const vector4& at, const vector4& up);
+		void setLockAt(const vector4& eye, const vector4 & lookat, const vector4& up);
 
         void initMatrix() override {
-			
+
+			eye.normalize();
+			at.normalize();
+			up.normalize();
+
 			//设置视角
-			for (size_t j = 0; j < 3; j++)
+			/*for (size_t j = 0; j < 3; j++)
 			{
 				rotateM.m[j][0] = eye[j];
 				rotateM.m[j][1] = at[j];
 				rotateM.m[j][2] = up[j];
-			}
+			}*/
 
 			//相机位置
 			positionM.m[3][0] = position[0];

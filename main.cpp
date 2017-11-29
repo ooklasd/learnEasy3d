@@ -22,7 +22,7 @@ int main(int argc, const char * argv[]) {
     PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,10,500);
     Render render(camera.width,camera.height);
 
-    camera.setPosition({-0.6f, 0.3f,1.5f});
+    camera.setPosition({-0.6f, 0.3f,1.3f});
 	render._state = Render::colorRender;
 	while (render.isRending())
 	{
@@ -58,7 +58,20 @@ int main(int argc, const char * argv[]) {
 			key[VK_UP] = 0;
 		}
 
+		if (key['q'] || key['Q'])
+		{
+			camera.position.z += 0.05;
+			key['q'] =  key['Q'] = 0;
+		}
+		if (key['e'] || key['E'])
+		{
+			camera.position.z -= 0.05;
+			key['e'] = key['E'] = 0;
+		}
+
 		if (key[VK_ESCAPE]) break;
+
+		//camera.setLockAt(camera.position, { 2,2,2 }, { 0,1,0 });
 
 		render.preRending();
 		render.rending(scene, camera);
