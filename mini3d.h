@@ -18,7 +18,10 @@ namespace  mini3d
 
     // 计算插值：t 为 [0, 1] 之间的数值
     template <typename T>
-    T interp(const T& x1, const T& x2, float t) { return x1 + (T)((x2 - x1) * t); }
+    inline T interp(const T& x1, const T& x2, float t) { return x1 + (T)((x2 - x1) * t); }
+
+	template <typename T1, typename T2>
+	inline T1 interp(const T1& x1, const T2& x2, float t) { return x1 + (T1)((x2 - x1) * t); }
 
 	
     template <typename T>
@@ -491,21 +494,24 @@ namespace  mini3d
         std::vector<vector4> uv;
         std::vector<face> faces;
 
-        UINT* _textrue;
+		UINT* _textrue;
+		UINT _tsize;
     };
 
 
     struct vertex
     {
-        vertex(){}
+        vertex():obj(nullptr){}
         vector4 pos;
         vector4 UV;
         float w;
         Color color;
+		const Object3D * obj;
         void set(const Object3D &obj, int index,const vector4& pos2D,float w)
         {
             color = obj.colors[index]*w;
             UV = obj.uv[index]*w;
+			this->obj = &obj;
 			pos = pos2D;
 			this->w = w;
         }
@@ -587,6 +593,8 @@ namespace  mini3d
 		long screen_pitch = 0;
 	};
 
+	class Render;
+	typedef void (Render::*setPixelFunction)(UINT& pixel,const vertex& v);
     //渲染器
     class Render
     {
@@ -621,7 +629,13 @@ namespace  mini3d
         static UINT check_cvv(const vector4& p);
 
         //设置像素
-        void setPixel(int x,int y,float w,const Color& color);
+		void setPixel(int x, int y, float w, const Color& color);
+		void setUVPixel(UINT& pixel,const vertex& v);
+		void setColorPixel(UINT& pixel, const vertex& v)
+		{
+			pixel = v.color;
+		}
+		setPixelFunction setPixelFunc;
 
         //画线
         void drawline(vector4 be,vector4 ed);

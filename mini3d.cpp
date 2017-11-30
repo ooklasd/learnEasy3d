@@ -53,14 +53,14 @@ void Scene::init() {
 
 	//UV
 	obj.uv.push_back({ 0,0,0 });
-	obj.uv.push_back({ 1,0,0 });
-	obj.uv.push_back({ 1,1,0 });
-	obj.uv.push_back({ 0,1,0 });
+	obj.uv.push_back({ 5,0,0 });
+	obj.uv.push_back({ 5,5,0 });
+	obj.uv.push_back({ 0,5,0 });
 
-	obj.uv.push_back({ 1,1,0 });
-	obj.uv.push_back({ 2,1,0 });
-	obj.uv.push_back({ 2,2,0 });
-	obj.uv.push_back({ 1,2,0 });
+	obj.uv.push_back({ 5,5,0 });
+	obj.uv.push_back({ 10,5,0 });
+	obj.uv.push_back({ 10,10,0 });
+	obj.uv.push_back({ 5,10,0 });
 
 	obj.colors.push_back({ 0,0,0 });
 	obj.colors.push_back({ 0,0,1 });
@@ -97,13 +97,33 @@ void Scene::init() {
     obj.faces.push_back({2,3,7});
     obj.faces.push_back({2,7,6});
 
-	auto& m = worldMatrix.m;
+	//生成材质
+	obj._textrue = new UINT[64 * 64];
+	Color c1(0, 162.0 / 255, 232.0 / 255);
+	Color c2(206.0 / 255, 240.0 / 255, 255.0 / 255);
 
-	
+	UINT color1 = c1;
+	UINT color2 = c2;
+	obj._tsize = 64;
 
+	for (size_t y = 0; y < 32; y++)
+	{
+		for (size_t x = 0; x < 32; x++)
+		{
+			//蓝色左上
+			obj._textrue[y * 64 + x] = color1;
 
-	//Z方向移动0.5
-	//m[3][2] = 0.5;
+			//蓝色右下		
+			obj._textrue[(y+32) * 64 + x+32] = color1;
+
+			//白色右上
+			obj._textrue[y * 64 + x + 32] = color2;
+
+			//白色左下
+			obj._textrue[(y + 32) * 64 + x] = color2;
+		}
+
+	}
 }
 
 void mini3d::Render::preRending()
@@ -111,14 +131,27 @@ void mini3d::Render::preRending()
 	ClearFrame(_bkColor);
 	device->dispatch();
 
-	
+	switch (_state)
+	{
+	case mini3d::Render::wireframeRender:
+		setPixelFunc = nullptr;
+		break;
+	case mini3d::Render::colorRender:
+		setPixelFunc = &Render::setColorPixel;
+		break;
+	case mini3d::Render::textureRender:
+		setPixelFunc = &Render::setUVPixel;
+		break;
+	default:
+		break;
+	}
 }
 
 void Render::rending(Scene &scene, Camera &camera) {
 
 	camera.initMatrix();
 
-    auto obj = scene.obj;
+    auto& obj = scene.obj;
 
     auto transform = scene.worldMatrix*camera.getMatrix();
 
@@ -187,6 +220,17 @@ void Render::setPixel(int x, int y, float w, const Color& color) {
         zbuffer = w;
         frameBuffer[x+y*width] = color;
     }
+}
+
+void mini3d::Render::setUVPixel(UINT & pixel, const vertex & v)
+{
+	auto& obj = *v.obj;
+	auto& UV = v.UV;
+	float U = fmod(UV.x, 1.0f);
+	float V = fmod(UV.y, 1.0f);
+	UINT offset = interp(0, obj._tsize, U)*obj._tsize;
+	offset += interp(0, obj._tsize, V);
+	pixel = obj._textrue[offset];
 }
 
 void Render::drawline(vector4 be, vector4 ed) {
@@ -283,7 +327,8 @@ void Render::drawline(const vertex& be, const vertex& ed) {
             {
                 zb[x] = w;
                 auto p = curPoint.normalize();
-                fb[x] = p.color;
+				if(setPixelFunc != nullptr)
+					(this->*setPixelFunc)(fb[x],p);
             }
         }
         ls.step(curPoint);
@@ -341,6 +386,7 @@ vertex vertex::sub(const vertex & rhs)const {
     ret.pos = pos - rhs.pos;
     ret.UV = UV - rhs.UV;
     ret.w = w - rhs.w;
+	ret.obj = rhs.obj;
 	for (size_t i = 0; i < 4; i++)
 	{
 		ret.color[i] = color[i] - rhs.color[i];
@@ -355,6 +401,7 @@ vertex vertex::interp(const vertex& rhs, float t) {
     ret.UV = UV.interp(rhs.UV, t);
     ret.w = mini3d::interp(w,rhs.w, t);
     ret.color = color.interp(rhs.color,t);
+	ret.obj = obj;
     return std::move(ret);
 }
 
@@ -363,8 +410,8 @@ vertex vertex::add(const vertex &rhs) const {
     ret.pos = pos + rhs.pos;
     ret.UV = UV + rhs.UV;
     ret.w = w + rhs.w;
-
     ret.color = color + rhs.color;
+	ret.obj = rhs.obj;
     return std::move(ret);
 }
 
