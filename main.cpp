@@ -22,7 +22,8 @@ int main(int argc, const char * argv[]) {
     PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,0.2,50);
     Render render(camera.width,camera.height);
 
-    camera.setPosition({0.0f, 0.0f,3.0f});
+	//-1错误表现
+    camera.setPosition({0.0f, -0.50f,0});
 	render._state = Render::RENDER_STATE::textureRender;
 
 	//Y轴旋转
@@ -75,8 +76,8 @@ int main(int argc, const char * argv[]) {
 		if (key[VK_ESCAPE]) break;
 
 		angleY += 0.01;
-		camera.position.x = cos(angleY) * 3;
-		camera.position.z = sin(angleY) * 3;
+		camera.position.x = cos(angleY) * 1.5 + 0.5;
+		camera.position.z = sin(angleY) * 1.5 + 0.5;
 		camera.setLockAt(camera.position, { 0.5,0,0.5 }, { 0,1,0 });
 
 		render.preRending();

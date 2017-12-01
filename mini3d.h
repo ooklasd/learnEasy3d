@@ -449,10 +449,8 @@ namespace  mini3d
 			positionM.m[3][2] = -position[2];
 
 			//合并矩阵
-			transfromMatrix = rotateM*positionM;
+			transfromMatrix = positionM*rotateM;
 			transfromMatrix = transfromMatrix*perspectiveM;
-			//transfromMatrix = transfromMatrix*viewProtM;
-
 			//transfromMatrix = rotateM*positionM*perspectiveM*viewProtM;
         }
 

@@ -652,14 +652,17 @@ void mini3d::PerspectiveCamera::setLockAt( vector4  eye,  vector4 lookat,  vecto
 	auto& m = rotateM.m;
 	for (size_t j = 0; j < 3; j++)
 	{
-		m[0][j] = u[j];
-		m[1][j] = v[j];
-		m[2][j] = n[j];
+		m[j][0] = u[j];
+		m[j][1] = v[j];
+		m[j][2] = n[j];
 	}
 
-	m[3][0] = -u.dot(eye);
+	/*m[3][0] = -u.dot(eye);
 	m[3][1] = -v.dot(eye);
-	m[3][2] = -n.dot(eye);
+	m[3][2] = -n.dot(eye);*/
+
+	position = eye;
+	initMatrix();
 }
 
 const Matrix & mini3d::PerspectiveCamera::getMatrixViewProt() const
