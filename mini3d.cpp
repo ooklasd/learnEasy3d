@@ -153,7 +153,7 @@ void Render::rending(Scene &scene, Camera &camera) {
 
     auto& obj = scene.obj;
 
-    auto transform = scene.worldMatrix*camera.getMatrix();
+    auto transform = scene.worldMatrix*camera.getMatrixCamera();
 
     //生成各个面
     for (auto face : obj.faces) {
@@ -161,19 +161,25 @@ void Render::rending(Scene &scene, Camera &camera) {
         ,p2 = obj.points[face.index[1]]
         ,p3 = obj.points[face.index[2]];
 
+		//场景归一化到 xyz[-1,1]
         p1 = p1 * transform;
         p2 = p2 * transform;
         p3 = p3 * transform;
 
-        if(check_cvv(p1) == 0) continue;
-        if(check_cvv(p2) == 0) continue;
-        if(check_cvv(p3) == 0) continue;
+        if(check_cvv(p1) != 0) continue;
+        if(check_cvv(p2) != 0) continue;
+        if(check_cvv(p3) != 0) continue;
 
-        //归一化
+		//视口变换
+		p1 = p1 * camera.getMatrixViewProt();
+		p2 = p2 * camera.getMatrixViewProt();
+		p3 = p3 * camera.getMatrixViewProt();
 
-        auto p2D_1 = p1.normalize();
-        auto p2D_2 = p2.normalize();
-        auto p2D_3 = p3.normalize();
+        //w归一化
+
+        auto p2D_1 = p1.normalizeW();
+        auto p2D_2 = p2.normalizeW();
+        auto p2D_3 = p3.normalizeW();
 
 
         if(_state == wireframeRender) {
@@ -316,6 +322,7 @@ void Render::drawline(const vertex& be, const vertex& ed) {
 
     int beginx = (int)(be.pos.x+0.5);
     int endx = (int)(ed.pos.x+0.5);
+
     LineScaner ls(be,ed,endx - beginx);
     vertex curPoint = be;
     for (int x = beginx; x <= endx; ++x) {
@@ -375,9 +382,9 @@ UINT Render::check_cvv(const vector4 &v) {
 
 void vertex::normalizeSelf() {
     pos.w = w;
-    pos.normalizeSelf();
+    pos.normalizeSelfW();
     UV.w = w;
-    UV.normalizeSelf();
+    UV.normalizeSelfW();
     color /= w;
 }
 
@@ -630,22 +637,32 @@ LRESULT mini3d::Device::events(HWND hWnd, UINT msg,WPARAM wParam, LPARAM lParam)
 }
 
 
-void mini3d::PerspectiveCamera::setLockAt(const vector4 & eye, const vector4 & lookat, const vector4 & up)
+void mini3d::PerspectiveCamera::setLockAt( vector4  eye,  vector4 lookat,  vector4  up)
 {
 	auto n = lookat - eye;
-	n.normalize();
-	up.normalize();
+	n.normalizeSelf();
+	up.normalizeSelf();
 	auto u = up.cross(n);
-	u.normalize();
+	u.normalizeSelf();
 
 	auto v = n.cross(u);
-	v.normalize();
+	v.normalizeSelf();
 
 	rotateM.identity();
+	auto& m = rotateM.m;
 	for (size_t j = 0; j < 3; j++)
 	{
-		rotateM.m[j][0] = u[j];
-		rotateM.m[j][1] = v[j];
-		rotateM.m[j][2] = n[j];
+		m[0][j] = u[j];
+		m[1][j] = v[j];
+		m[2][j] = n[j];
 	}
+
+	m[3][0] = -u.dot(eye);
+	m[3][1] = -v.dot(eye);
+	m[3][2] = -n.dot(eye);
+}
+
+const Matrix & mini3d::PerspectiveCamera::getMatrixViewProt() const
+{
+	return viewProtM;
 }

@@ -19,11 +19,14 @@ int main(int argc, const char * argv[]) {
     int screenWidth = 800,screenHeight = 500;
     Scene scene;
     scene.init();
-    PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,10,500);
+    PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,0.2,50);
     Render render(camera.width,camera.height);
 
-    camera.setPosition({-0.6f, 0.3f,1.3f});
-	render._state = Render::colorRender;
+    camera.setPosition({0.0f, 0.0f,3.0f});
+	render._state = Render::RENDER_STATE::textureRender;
+
+	//Y轴旋转
+	float angleY = 0;
 	while (render.isRending())
 	{
 		//响应按钮
@@ -71,13 +74,16 @@ int main(int argc, const char * argv[]) {
 
 		if (key[VK_ESCAPE]) break;
 
-		//camera.setLockAt(camera.position, { 2,2,2 }, { 0,1,0 });
+		angleY += 0.01;
+		camera.position.x = cos(angleY) * 3;
+		camera.position.z = sin(angleY) * 3;
+		camera.setLockAt(camera.position, { 0.5,0,0.5 }, { 0,1,0 });
 
 		render.preRending();
 		render.rending(scene, camera);
 		Sleep(10);
 	}
 
-    cout<<"完毕"<<endl;
+    std::cout<<"完毕"<<endl;
 }
 

@@ -63,17 +63,35 @@ namespace  mini3d
             return vectorX<T>(x*v,y*v,z*v,1);
         }
 
-        vectorX<T> normalize()const
+        vectorX<T> normalizeW()const
         {
             return vectorX<T>(x/w,y/w,z/w,1);
         }
 
-        void normalizeSelf()
+        void normalizeSelfW()
         {
             x/=w,y/=w,z/=w,w=1;
         }
 
-        T length()const
+		vectorX<T> normalize()const
+		{
+			auto res = this->normalizeW();
+			auto len = res.length();
+			if (len != 0.0f)
+				res /= len;
+			return res;
+		}
+
+		void normalizeSelf()
+		{
+			normalizeSelfW();
+			auto len = length();
+			if (len != 0.0f)
+				*this = scale(1.0/ len);
+		}
+
+
+        float length()const
         {
             float temp = x*x+y*y+z*z;
             return ::sqrt(temp);
@@ -295,7 +313,8 @@ namespace  mini3d
 
     class Camera {
     public:
-        virtual const Matrix& getMatrix()const = 0;
+		virtual const Matrix& getMatrixCamera()const = 0;
+		virtual const Matrix& getMatrixViewProt()const = 0;
         virtual void initMatrix() = 0;
         float znear,  zfar;
     };
@@ -414,34 +433,25 @@ namespace  mini3d
 			viewProtM.m[3][1] = height*0.5;
         }
 
-        const Matrix &getMatrix() const override {
+        const Matrix &getMatrixCamera() const override {
             return transfromMatrix;
         }
-		void setLockAt(const vector4& eye, const vector4 & lookat, const vector4& up);
+
+		// 通过 Camera 继承
+		virtual const Matrix & getMatrixViewProt() const override;
+		void setLockAt(vector4 eye, vector4 lookat, vector4 up);
 
         void initMatrix() override {
 
-			eye.normalize();
-			at.normalize();
-			up.normalize();
-
-			//设置视角
-			/*for (size_t j = 0; j < 3; j++)
-			{
-				rotateM.m[j][0] = eye[j];
-				rotateM.m[j][1] = at[j];
-				rotateM.m[j][2] = up[j];
-			}*/
-
 			//相机位置
-			positionM.m[3][0] = position[0];
-			positionM.m[3][1] = position[1];
-			positionM.m[3][2] = position[2];
+			positionM.m[3][0] = -position[0];
+			positionM.m[3][1] = -position[1];
+			positionM.m[3][2] = -position[2];
 
 			//合并矩阵
 			transfromMatrix = rotateM*positionM;
 			transfromMatrix = transfromMatrix*perspectiveM;
-			transfromMatrix = transfromMatrix*viewProtM;
+			//transfromMatrix = transfromMatrix*viewProtM;
 
 			//transfromMatrix = rotateM*positionM*perspectiveM*viewProtM;
         }
@@ -475,7 +485,8 @@ namespace  mini3d
 
 	private:
 		Matrix rotateM, positionM, perspectiveM,viewProtM;
-    };
+
+	};
 
 
     //3d对象，为一个box
