@@ -24,10 +24,11 @@ int main(int argc, const char * argv[]) {
 
 	//-1错误表现
     camera.setPosition({0.0f, -0.50f,0});
-	render._state = Render::RENDER_STATE::textureRender;
+	render._state = Render::RENDER_STATE::wireframeRender;
 
 	//Y轴旋转
-	float angleY = 0;
+	float angleY = -1.5;
+	float rotateSpeed = 0;
 	while (render.isRending())
 	{
 		//响应按钮
@@ -61,6 +62,12 @@ int main(int argc, const char * argv[]) {
 			camera.position.y -= 0.05;
 			key[VK_UP] = 0;
 		}
+		if (key[VK_SPACE])
+		{
+			rotateSpeed -=1;
+			if (rotateSpeed <0) rotateSpeed = 4;
+			key[VK_SPACE] = 0;
+		}
 
 		if (key['q'] || key['Q'])
 		{
@@ -75,10 +82,11 @@ int main(int argc, const char * argv[]) {
 
 		if (key[VK_ESCAPE]) break;
 
-		angleY += 0.01;
 		camera.position.x = cos(angleY) * 1.5 + 0.5;
 		camera.position.z = sin(angleY) * 1.5 + 0.5;
 		camera.setLockAt(camera.position, { 0.5,0,0.5 }, { 0,1,0 });
+		
+		angleY += 0.005*rotateSpeed;
 
 		render.preRending();
 		render.rending(scene, camera);

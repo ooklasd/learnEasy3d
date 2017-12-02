@@ -245,12 +245,17 @@ void Render::drawline(vector4 be, vector4 ed) {
 	{
 		std::swap(be, ed);
 	}
+
+	be.x = (int)(be.x + 0.5);
+	be.y = (int)(be.y + 0.5);
+	ed.x = (int)(ed.x + 0.5);
+	ed.y = (int)(ed.y + 0.5);
+
     auto sub = ed - be;
-    float dxChange = fabs(sub.y) < 0.0001? sub.x :sub.x/sub.y;
+    float dxChange = fabs(sub.y) < 1? sub.x :sub.x/(sub.y+1);
     float dxSum = 0;
-    int curX = (int)(be.x+0.5);
-	ed.y += 0.5;
-    for (int y = (int)(be.y+0.5); y <= ed.y; ++y) {
+    int curX = be.x;
+    for (int y = be.y; y <= ed.y; ++y) {
 
         dxSum+= dxChange;
         if(-1< dxSum && dxSum < 1)
