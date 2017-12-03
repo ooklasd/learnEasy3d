@@ -24,10 +24,11 @@ int main(int argc, const char * argv[]) {
 
 	//-1错误表现
     camera.setPosition({0.0f, -0.50f,0});
-	render._state = Render::RENDER_STATE::wireframeRender;
+	render._state = Render::RENDER_STATE::textureRender;
+	render._lineColor = 0xff00ff;
 
 	//Y轴旋转
-	float angleY = -1.5;
+	float angleY = -PI_2;
 	float rotateSpeed = 0;
 	while (render.isRending())
 	{
@@ -90,7 +91,7 @@ int main(int argc, const char * argv[]) {
 
 		render.preRending();
 		render.rending(scene, camera);
-		Sleep(10);
+		Sleep(16);
 	}
 
     std::cout<<"完毕"<<endl;
