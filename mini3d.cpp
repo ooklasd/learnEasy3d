@@ -51,17 +51,8 @@ void Scene::init() {
     obj.points.push_back({1,1,1});
     obj.points.push_back({0,1,1});
 
-	//UV
-	obj.uv.push_back({ 0,0,0 });
-	obj.uv.push_back({ 5,0,0 });
-	obj.uv.push_back({ 5,5,0 });
-	obj.uv.push_back({ 0,5,0 });
-
-	obj.uv.push_back({ 5,5,0 });
-	obj.uv.push_back({ 10,5,0 });
-	obj.uv.push_back({ 10,10,0 });
-	obj.uv.push_back({ 5,10,0 });
-
+	
+	//色彩
 	obj.colors.push_back({ 0,0,0 });
 	obj.colors.push_back({ 0,0,1 });
 	obj.colors.push_back({ 0,1,0 });
@@ -73,29 +64,43 @@ void Scene::init() {
     
 
     //按照定点索引，制造三角形面
-    //上面
+    //前面
     obj.faces.push_back({0,1,3});
     obj.faces.push_back({1,2,3});
+	
 
-    //下面
+    //后面
     obj.faces.push_back({4,5,7});
     obj.faces.push_back({5,6,7});
 
     //左面
-    obj.faces.push_back({0,4,3});
-    obj.faces.push_back({4,7,3});
+    obj.faces.push_back({4,0,7});
+    obj.faces.push_back({0,3,7});
 
     //右面
-    obj.faces.push_back({5,1,6});
-    obj.faces.push_back({6,1,2});
+    obj.faces.push_back({1,5,2});
+    obj.faces.push_back({5,6,2});
 
-    //前面
+    //下面
     obj.faces.push_back({0,1,4});
-    obj.faces.push_back({4,1,5});
+    obj.faces.push_back({1,5,4});
 
-    //后面
-    obj.faces.push_back({2,3,7});
-    obj.faces.push_back({2,7,6});
+    //上面
+    obj.faces.push_back({3,2,7});
+    obj.faces.push_back({2,6,7});
+
+	for (size_t i = 0; i < 6; i++)
+	{
+		obj.uv.push_back({ 0,0,0 });
+		obj.uv.push_back({ 5,0,0 });
+		obj.uv.push_back({ 0,5,0 });
+		obj.uv.push_back({ 5,0,0 });
+		obj.uv.push_back({ 5,5,0 });
+		obj.uv.push_back({ 0,5,0 });
+	}
+
+
+
 
 	//生成材质
 	obj._textrue = new UINT[64 * 64];
@@ -122,7 +127,6 @@ void Scene::init() {
 			//白色左下
 			obj._textrue[(y + 32) * 64 + x] = color2;
 		}
-
 	}
 }
 
@@ -156,7 +160,9 @@ void Render::rending(Scene &scene, Camera &camera) {
     auto transform = scene.worldMatrix*camera.getMatrixCamera();
 
     //生成各个面
-    for (auto face : obj.faces) {
+	for (size_t iface = 0; iface < obj.faces.size(); iface++)
+	{
+		auto& face = obj.faces[iface];
         vector4 p1 = obj.points[face.index[0]]
         ,p2 = obj.points[face.index[1]]
         ,p3 = obj.points[face.index[2]];
@@ -192,9 +198,9 @@ void Render::rending(Scene &scene, Camera &camera) {
         {
             //生成顶
             Triangle triangle;
-            triangle.v[0].set(obj, face.index[0],p2D_1,p1.w);
-            triangle.v[1].set(obj, face.index[1],p2D_2,p2.w);
-            triangle.v[2].set(obj, face.index[2],p2D_3,p3.w);
+            triangle.v[0].set(obj, face.index[0],p2D_1,p1.w,obj.uv[iface*3+0]);
+            triangle.v[1].set(obj, face.index[1],p2D_2,p2.w,obj.uv[iface*3+1]);
+            triangle.v[2].set(obj, face.index[2],p2D_3,p3.w,obj.uv[iface*3+2]);
 
             //分解三角形
             auto triangleV = triangle.makeTwo();
@@ -203,11 +209,20 @@ void Render::rending(Scene &scene, Camera &camera) {
 			{
 				it->sortVectex();
 				it->computeTopBottom();
+
+				////三角形分解测试
+				//drawline(it->v[0].pos, it->v[1].pos);
+				//drawline(it->v[0].pos, it->v[2].pos);
+				//drawline(it->v[1].pos, it->v[2].pos);
 			}
+
 
             //渲染三角形
             if(triangleV.size()>=1) drawTriangle(triangleV[0]);
             if(triangleV.size()>=2) drawTriangle(triangleV[1]);
+
+
+
         }
     }
 
@@ -287,7 +302,7 @@ void Render::drawTriangle(const Triangle &t) {
     int bottom = (int)(t.bottom+0.5);
 	if (top == bottom) return;
 
-    //平底三角形转化为平行梯形
+    //平底三角形转化为梯形
     vertex topV[2],bottomV[2];
     if(t.v[0].pos.y == t.v[1].pos.y)
     {
@@ -307,7 +322,7 @@ void Render::drawTriangle(const Triangle &t) {
 	assert(top < bottom);
 
     //中间向两边
-    for (int y = top; y <= bottom; ++y) {
+    for (int y = top; y < bottom; ++y) {
         if(y>=0 && y<height)
         {
             //边缘插值
@@ -334,7 +349,7 @@ void Render::drawline(const vertex& be, const vertex& ed) {
         if(x>=0 && x<width)
         {
             //描写当前点的颜色
-            float w = 1/curPoint.w;
+            float w = curPoint.rw;
             if(zb[x] < w)
             {
                 zb[x] = w;
@@ -386,18 +401,20 @@ UINT Render::check_cvv(const vector4 &v) {
 }
 
 void vertex::normalizeSelf() {
-    pos.w = w;
-    pos.normalizeSelfW();
-    UV.w = w;
-    UV.normalizeSelfW();
-    color /= w;
+	/*pos = pos.scale(rw);
+    pos.w = 1;*/
+
+	UV.x /= rw;
+	UV.y /= rw;
+
+	color /= rw;
 }
 
 vertex vertex::sub(const vertex & rhs)const {
     vertex ret;
     ret.pos = pos - rhs.pos;
     ret.UV = UV - rhs.UV;
-    ret.w = w - rhs.w;
+    ret.rw = rw - rhs.rw;
 	ret.obj = rhs.obj;
 	for (size_t i = 0; i < 4; i++)
 	{
@@ -410,8 +427,9 @@ vertex vertex::sub(const vertex & rhs)const {
 vertex vertex::interp(const vertex& rhs, float t) {
     vertex ret;
     ret.pos = pos.interp(rhs.pos, t);
+	ret.rw = mini3d::interp(rw, rhs.rw, t);
+
     ret.UV = UV.interp(rhs.UV, t);
-    ret.w = mini3d::interp(w,rhs.w, t);
     ret.color = color.interp(rhs.color,t);
 	ret.obj = obj;
     return std::move(ret);
@@ -421,7 +439,7 @@ vertex vertex::add(const vertex &rhs) const {
     vertex ret;
     ret.pos = pos + rhs.pos;
     ret.UV = UV + rhs.UV;
-    ret.w = w + rhs.w;
+    ret.rw = rw + rhs.rw;
     ret.color = color + rhs.color;
 	ret.obj = rhs.obj;
     return std::move(ret);
@@ -440,7 +458,7 @@ LineScaner::LineScaner(const vertex &v1, const vertex &v2, int stepSize) {
 		stepValue.pos = stepValue.pos / stepSize;
 		stepValue.UV = stepValue.UV / stepSize;
 		stepValue.color /= stepSize;
-		stepValue.w /= stepSize;
+		stepValue.rw /= stepSize;
 	}	
 }
 
@@ -498,7 +516,8 @@ std::vector<Triangle> Triangle::makeTwo() {
 	vertex middle = v[0].interp(v[2], dy01 / dy02);
 
 	//中间点的Y相等
-	middle.pos.y = v[1].pos.y;
+	assert(fabs(middle.pos.y - v[1].pos.y)<0.001);
+	middle.pos.y  = v[1].pos.y;
 
 	if (k1 == k2)
 	{

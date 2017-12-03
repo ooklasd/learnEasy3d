@@ -13,6 +13,9 @@
 
 namespace  mini3d
 {
+#define PI 3.1415926535898
+#define PI_2 1.5707963267949
+
     typedef unsigned int UINT;
     int CMID(int x, int min, int max);
 
@@ -492,7 +495,7 @@ namespace  mini3d
     {
     public:
         struct face{
-            int index[3];
+			int index[3];
         };
         Object3D();
 
@@ -500,8 +503,8 @@ namespace  mini3d
 
         std::vector<Color> colors;
         std::vector<vector4> points;
-        std::vector<vector4> uv;
         std::vector<face> faces;
+		std::vector<vector4> uv;
 
 		UINT* _textrue;
 		UINT _tsize;
@@ -513,16 +516,16 @@ namespace  mini3d
         vertex():obj(nullptr){}
         vector4 pos;
         vector4 UV;
-        float w;
+        float rw;
         Color color;
 		const Object3D * obj;
-        void set(const Object3D &obj, int index,const vector4& pos2D,float w)
+        void set(const Object3D &obj, int index,const vector4& pos2D,float w, const vector4& UV)
         {
-            color = obj.colors[index]*w;
-            UV = obj.uv[index]*w;
+			this->rw = 1.0f / w;
+			color = obj.colors[index]*rw;
+            this->UV = UV*rw;
 			this->obj = &obj;
 			pos = pos2D;
-			this->w = w;
         }
         void normalizeSelf();
         vertex normalize()const;
