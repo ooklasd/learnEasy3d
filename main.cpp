@@ -26,6 +26,7 @@ int main(int argc, const char * argv[]) {
     camera.setPosition({0.0f, -0.50f,0});
 	render._state = Render::RENDER_STATE::textureRender;
 	render._lineColor = 0xff00ff;
+	render._bkColor = 0xeeeeee;
 
 	//Y轴旋转
 	float angleY = -PI_2;
