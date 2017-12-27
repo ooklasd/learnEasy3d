@@ -41,6 +41,13 @@ Object3D::~Object3D() {
 
 void Scene::init() {
 
+	amberLight = Color(0.1,0.1,0.1);
+	pointLight.push_back({ vector4({ 0.5f,1.1f,0.5f}),0.7f });
+	pointLight.push_back({ vector4({ 0.8f,1.3f,1.3f }) ,0.4f });
+	pointLight.push_back({ vector4({ 0.0f,1.3f,1.1f }) ,0.6f });
+	pointLight.push_back({ vector4({ 0.5f,0.5f,-1.0f }) ,0.5f });
+
+
     obj.points.push_back({0,0,0});
     obj.points.push_back({1,0,0});
     obj.points.push_back({1,1,0});
@@ -67,11 +74,10 @@ void Scene::init() {
     //前面
     obj.faces.push_back({0,1,3});
     obj.faces.push_back({1,2,3});
-	
 
     //后面
-    obj.faces.push_back({4,5,7});
-    obj.faces.push_back({5,6,7});
+    obj.faces.push_back({4,7,5 });
+    obj.faces.push_back({7,6,5 });
 
     //左面
     obj.faces.push_back({4,0,7});
@@ -82,8 +88,8 @@ void Scene::init() {
     obj.faces.push_back({5,6,2});
 
     //下面
-    obj.faces.push_back({0,1,4});
-    obj.faces.push_back({1,5,4});
+    obj.faces.push_back({0,4,1});
+    obj.faces.push_back({4,5,1});
 
     //上面
     obj.faces.push_back({3,2,7});
@@ -98,6 +104,15 @@ void Scene::init() {
 		obj.uv.push_back({ 5,5,0 });
 		obj.uv.push_back({ 0,5,0 });
 	}
+
+	for (auto it = obj.faces.begin(); it < obj.faces.end(); it++)
+	{
+		auto& findex = it->index;
+		auto& p = obj.points;
+
+		obj.faceNormal.push_back((p[findex[1]]-p[findex[0]])^(p[findex[2]] - p[findex[0]]));
+	}
+
 
 
 
@@ -134,6 +149,7 @@ void mini3d::Render::preRending()
 {
 	ClearFrame(_bkColor);
 	device->dispatch();
+	lights.clear();
 
 	switch (_state)
 	{
@@ -152,40 +168,60 @@ void mini3d::Render::preRending()
 }
 
 void Render::rending(Scene &scene, Camera &camera) {
+	this->scene = &scene;
+	this->camera = &camera;
 
 	camera.initMatrix();
 
     auto& obj = scene.obj;
 
-    auto transform = scene.worldMatrix*camera.getMatrixCamera();
+	//所有的变换矩阵
+	auto masterTransform = scene.worldMatrix*camera.getMatrix();
+
+	//平移和旋转
+	auto transform = scene.worldMatrix*camera.getTransfrom();
+	auto rotateM = scene.worldMatrix*camera.getRotate();
+
+	//灯光变换
+	for (auto it = scene.pointLight.begin(); it != scene.pointLight.end(); it++)
+	{
+		lights.push_back(*it);
+		auto& curLight = lights.back();
+		curLight.position = curLight.position * transform;
+		curLight.position.normalizeSelfW();
+	}
+
 
     //生成各个面
 	for (size_t iface = 0; iface < obj.faces.size(); iface++)
 	{
 		auto& face = obj.faces[iface];
-        vector4 p1 = obj.points[face.index[0]]
-        ,p2 = obj.points[face.index[1]]
-        ,p3 = obj.points[face.index[2]];
-
+		auto p1 = obj.points[face.index[0]];
+		auto p2 = obj.points[face.index[1]];
+		auto p3 = obj.points[face.index[2]];
+		
 		//场景归一化到 xyz[-1,1]
-        p1 = p1 * transform;
-        p2 = p2 * transform;
-        p3 = p3 * transform;
+        vector4 p3D_1 = p1 * masterTransform;
+        vector4 p3D_2 = p2 * masterTransform;
+        vector4 p3D_3 = p3 * masterTransform;
+		vector4 faceNormal = (obj.faceNormal[iface] * rotateM);
+		faceNormal.normalizeSelfW();
+		if (faceNormal.dot({ 0,0,1 }) < 0) continue;
 
-        if(check_cvv(p1) != 0) continue;
-        if(check_cvv(p2) != 0) continue;
-        if(check_cvv(p3) != 0) continue;
+        if(check_cvv(p3D_1) != 0) continue;
+        if(check_cvv(p3D_2) != 0) continue;
+        if(check_cvv(p3D_3) != 0) continue;
 
 		//视口变换
-		p1 = p1 * camera.getMatrixViewProt();
-		p2 = p2 * camera.getMatrixViewProt();
-		p3 = p3 * camera.getMatrixViewProt();
+		auto p2D_1 = p3D_1 * camera.getMatrixViewProt();
+		auto p2D_2 = p3D_2 * camera.getMatrixViewProt();
+		auto p2D_3 = p3D_3 * camera.getMatrixViewProt();
 
         //w归一化
 
-        auto p2D_1 = p1.normalizeW();
-        auto p2D_2 = p2.normalizeW();
-        auto p2D_3 = p3.normalizeW();
+        p2D_1 = p2D_1.normalizeW();
+		p2D_2 = p2D_2.normalizeW();
+		p2D_3 = p2D_3.normalizeW();
 
 
         if(_state == wireframeRender) {
@@ -198,9 +234,9 @@ void Render::rending(Scene &scene, Camera &camera) {
         {
             //生成顶
             Triangle triangle;
-            triangle.v[0].set(obj, face.index[0],p2D_1,p1.w,obj.uv[iface*3+0]);
-            triangle.v[1].set(obj, face.index[1],p2D_2,p2.w,obj.uv[iface*3+1]);
-            triangle.v[2].set(obj, face.index[2],p2D_3,p3.w,obj.uv[iface*3+2]);
+            triangle.v[0].set(obj, face.index[0],p2D_1, p1*transform,p3D_1.w,obj.uv[iface*3+0], faceNormal);
+            triangle.v[1].set(obj, face.index[1],p2D_2, p2*transform,p3D_2.w,obj.uv[iface*3+1], faceNormal);
+            triangle.v[2].set(obj, face.index[2],p2D_3, p3*transform,p3D_3.w,obj.uv[iface*3+2], faceNormal);
 
             //分解三角形
             auto triangleV = triangle.makeTwo();
@@ -243,7 +279,7 @@ void Render::setPixel(int x, int y, float w, const Color& color) {
     }
 }
 
-void mini3d::Render::setUVPixel(UINT & pixel, const vertex & v)
+void mini3d::Render::setUVPixel(Color & pixel, const vertex & v)
 {
 	auto& obj = *v.obj;
 	auto& UV = v.UV;
@@ -251,7 +287,44 @@ void mini3d::Render::setUVPixel(UINT & pixel, const vertex & v)
 	float V = fmod(UV.y, 1.0f);
 	UINT offset = interp(0, obj._tsize, U)*obj._tsize;
 	offset += interp(0, obj._tsize, V);
-	pixel = obj._textrue[offset];
+	pixel.set(obj._textrue[offset]);
+}
+
+void mini3d::Render::setLightPixel(Color & pixel, const vertex & v)
+{
+	//添加光源
+	float PhongLight = 0;
+	float AmbientLight = 0;
+	float LambertLight = 0;
+	for each (auto& light in lights)
+	{
+		//Lambert材质属性
+		auto L = ( v.pos3D- light.position).normalize();
+		auto N = v.normal;
+		float lightV = N.dot(L);
+		LambertLight += (lightV >= 0 ? 0.1 : 0);
+
+		//Phong材质属性
+		auto reflection = L - N * 2 * (L.dot(N));
+		auto eye = camera->getPosition() - v.pos3D;
+		reflection.normalizeSelf();
+		eye.normalizeSelf();
+
+		auto reflectionValue = reflection.dot(eye);
+		reflectionValue = max(reflectionValue, 0);
+		reflectionValue = pow(reflectionValue, 10);
+		PhongLight += reflectionValue*light.power;
+	}
+	LambertLight = max(LambertLight, 0);
+	PhongLight = max(PhongLight, 0);
+
+	//环境光+散射光+Phong高光
+	pixel = pixel*scene->amberLight + pixel*LambertLight + Color(0.5,0.5,0.5)* PhongLight;
+
+	for each (auto& v in pixel.value.color)
+	{
+		v = min(v, 1);
+	}
 }
 
 void Render::drawline(vector4 be, vector4 ed) {
@@ -304,7 +377,7 @@ void Render::drawTriangle(const Triangle &t) {
 
     //平底三角形转化为梯形
     vertex topV[2],bottomV[2];
-    if(t.v[0].pos.y == t.v[1].pos.y)
+    if(t.v[0].pos2D.y == t.v[1].pos2D.y)
     {
         topV[0] = t.v[0];
         topV[1] = t.v[1];
@@ -317,8 +390,8 @@ void Render::drawTriangle(const Triangle &t) {
         bottomV[1] = t.v[2];
     }
 
-    assert(topV[0].pos.y == topV[1].pos.y);
-	assert(bottomV[0].pos.y == bottomV[1].pos.y);
+    assert(topV[0].pos2D.y == topV[1].pos2D.y);
+	assert(bottomV[0].pos2D.y == bottomV[1].pos2D.y);
 	assert(top < bottom);
 
     //中间向两边
@@ -337,11 +410,11 @@ void Render::drawTriangle(const Triangle &t) {
 }
 
 void Render::drawline(const vertex& be, const vertex& ed) {
-    auto fb = frameBuffer + (UINT)(be.pos.y+0.5)*width;
-    auto zb = Zbuffer + (UINT)(be.pos.y+0.5)*width;
+    auto fb = frameBuffer + (UINT)(be.pos2D.y+0.5)*width;
+    auto zb = Zbuffer + (UINT)(be.pos2D.y+0.5)*width;
 
-    int beginx = (int)(be.pos.x+0.5);
-    int endx = (int)(ed.pos.x+0.5);
+    int beginx = (int)(be.pos2D.x+0.5);
+    int endx = (int)(ed.pos2D.x+0.5);
 
     LineScaner ls(be,ed,endx - beginx);
     vertex curPoint = be;
@@ -354,8 +427,13 @@ void Render::drawline(const vertex& be, const vertex& ed) {
             {
                 zb[x] = w;
                 auto p = curPoint.normalize();
-				if(setPixelFunc != nullptr)
-					(this->*setPixelFunc)(fb[x],p);
+				if (setPixelFunc != nullptr)
+				{
+					Color color;
+					(this->*setPixelFunc)(color, p);
+					setLightPixel(color, p);
+					fb[x] = color;
+				}
             }
         }
         ls.step(curPoint);
@@ -403,16 +481,18 @@ UINT Render::check_cvv(const vector4 &v) {
 void vertex::normalizeSelf() {
 	/*pos = pos.scale(rw);
     pos.w = 1;*/
+	auto w = 1.0/rw;
+	UV.x *= w;
+	UV.y *= w;
 
-	UV.x /= rw;
-	UV.y /= rw;
-
-	color /= rw;
+	color *= w;
 }
 
 vertex vertex::sub(const vertex & rhs)const {
-    vertex ret;
-    ret.pos = pos - rhs.pos;
+	vertex ret = *this;
+	ret.pos2D = pos2D - rhs.pos2D;
+	ret.pos3D = pos3D - rhs.pos3D;
+	ret.normal = normal - rhs.normal;
     ret.UV = UV - rhs.UV;
     ret.rw = rw - rhs.rw;
 	ret.obj = rhs.obj;
@@ -425,20 +505,25 @@ vertex vertex::sub(const vertex & rhs)const {
 }
 
 vertex vertex::interp(const vertex& rhs, float t) {
-    vertex ret;
-    ret.pos = pos.interp(rhs.pos, t);
+	vertex ret = *this;
+	ret.pos2D = pos2D.interp(rhs.pos2D, t);
+	ret.pos3D = pos3D.interp(rhs.pos3D, t);
 	ret.rw = mini3d::interp(rw, rhs.rw, t);
 
     ret.UV = UV.interp(rhs.UV, t);
     ret.color = color.interp(rhs.color,t);
 	ret.obj = obj;
+	ret.normal = normal.interp(rhs.normal, t);
+
     return std::move(ret);
 }
 
 vertex vertex::add(const vertex &rhs) const {
-    vertex ret;
-    ret.pos = pos + rhs.pos;
-    ret.UV = UV + rhs.UV;
+    vertex ret = *this;
+	ret.pos2D = pos2D + rhs.pos2D;
+	ret.pos3D = pos3D + rhs.pos3D;
+	ret.normal = normal + rhs.normal;
+	ret.UV = UV + rhs.UV;
     ret.rw = rw + rhs.rw;
     ret.color = color + rhs.color;
 	ret.obj = rhs.obj;
@@ -455,7 +540,8 @@ LineScaner::LineScaner(const vertex &v1, const vertex &v2, int stepSize) {
 	if (stepSize > 0)
 	{
 		stepValue = v2.sub(v1);
-		stepValue.pos = stepValue.pos / stepSize;
+		stepValue.pos2D = stepValue.pos2D / stepSize;
+		stepValue.pos3D = stepValue.pos3D / stepSize;
 		stepValue.UV = stepValue.UV / stepSize;
 		stepValue.color /= stepSize;
 		stepValue.rw /= stepSize;
@@ -471,17 +557,17 @@ bool LineScaner::step(vertex &v, int num) const{
 
 void Triangle::computeTopBottom() {
     sortVectex();
-	bottom  = v[2].pos.y;
-	 top = v[0].pos.y;
+	bottom  = v[2].pos2D.y;
+	 top = v[0].pos2D.y;
 }
 
 void Triangle::sortVectex() {
-    if(v[0].pos.y >v[1].pos.y) std::swap(v[0], v[1]);
-    if(v[0].pos.y >v[2].pos.y) std::swap(v[0], v[2]);
-    if(v[1].pos.y >v[2].pos.y) std::swap(v[1], v[2]);
+    if(v[0].pos2D.y >v[1].pos2D.y) std::swap(v[0], v[1]);
+    if(v[0].pos2D.y >v[2].pos2D.y) std::swap(v[0], v[2]);
+    if(v[1].pos2D.y >v[2].pos2D.y) std::swap(v[1], v[2]);
 
-	if (v[0].pos.y == v[1].pos.y && v[0].pos.x > v[1].pos.x) std::swap(v[0], v[1]);
-	if (v[1].pos.y == v[2].pos.y && v[1].pos.x > v[2].pos.x) std::swap(v[1], v[2]);
+	if (v[0].pos2D.y == v[1].pos2D.y && v[0].pos2D.x > v[1].pos2D.x) std::swap(v[0], v[1]);
+	if (v[1].pos2D.y == v[2].pos2D.y && v[1].pos2D.x > v[2].pos2D.x) std::swap(v[1], v[2]);
 }
 
 std::vector<Triangle> Triangle::makeTwo() {
@@ -490,11 +576,11 @@ std::vector<Triangle> Triangle::makeTwo() {
 	sortVectex();
 
 	//三个点在同一掉线，则无效
-	if (v[0].pos.y == v[1].pos.y && v[0].pos.y == v[2].pos.y) return std::move(ret);
-	if (v[0].pos.x == v[1].pos.x && v[0].pos.x == v[2].pos.x) return std::move(ret);
+	if (v[0].pos2D.y == v[1].pos2D.y && v[0].pos2D.y == v[2].pos2D.y) return std::move(ret);
+	if (v[0].pos2D.x == v[1].pos2D.x && v[0].pos2D.x == v[2].pos2D.x) return std::move(ret);
 
 	//平底三角直接返回自己
-	if (v[0].pos.y == v[1].pos.y || v[1].pos.y == v[2].pos.y)
+	if (v[0].pos2D.y == v[1].pos2D.y || v[1].pos2D.y == v[2].pos2D.y)
 	{
 		ret.push_back(*this);
 		return std::move(ret);
@@ -503,21 +589,21 @@ std::vector<Triangle> Triangle::makeTwo() {
 	//拆分三角
 
 	//中点在线段的左边
-	auto d1 = v[0].pos - v[2].pos;
-	auto d2 = v[1].pos - v[2].pos;
+	auto d1 = v[0].pos2D - v[2].pos2D;
+	auto d2 = v[1].pos2D - v[2].pos2D;
 
 	auto k1 = d1.x / d1.y;
 	auto k2 = d2.x / d2.y;
 
-	auto dy01 = (v[0].pos.y - v[1].pos.y);
-	auto dy12 = (v[1].pos.y - v[2].pos.y);
-	auto dy02 = (v[0].pos.y - v[2].pos.y);
+	auto dy01 = (v[0].pos2D.y - v[1].pos2D.y);
+	auto dy12 = (v[1].pos2D.y - v[2].pos2D.y);
+	auto dy02 = (v[0].pos2D.y - v[2].pos2D.y);
 
 	vertex middle = v[0].interp(v[2], dy01 / dy02);
 
 	//中间点的Y相等
-	assert(fabs(middle.pos.y - v[1].pos.y)<0.001);
-	middle.pos.y  = v[1].pos.y;
+	assert(fabs(middle.pos2D.y - v[1].pos2D.y)<0.001);
+	middle.pos2D.y  = v[1].pos2D.y;
 
 	if (k1 == k2)
 	{
@@ -688,6 +774,9 @@ void mini3d::PerspectiveCamera::setLockAt( vector4  eye,  vector4 lookat,  vecto
 	position = eye;
 	initMatrix();
 }
+
+
+
 
 const Matrix & mini3d::PerspectiveCamera::getMatrixViewProt() const
 {

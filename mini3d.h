@@ -80,8 +80,8 @@ namespace  mini3d
 		{
 			auto res = this->normalizeW();
 			auto len = res.length();
-			if (len != 0.0f)
-				res /= len;
+			if (len > 0.0001f)
+				res = res.scale(1/len);
 			return res;
 		}
 
@@ -316,26 +316,44 @@ namespace  mini3d
 
     class Camera {
     public:
-		virtual const Matrix& getMatrixCamera()const = 0;
+
+		//所有的变换矩阵
+		virtual const Matrix& getMatrix()const = 0;
+
+		//视口变换矩阵
 		virtual const Matrix& getMatrixViewProt()const = 0;
-        virtual void initMatrix() = 0;
+
+		//平移旋转
+		virtual const Matrix& getTransfrom() const = 0;
+
+		//旋转
+		virtual const Matrix& getRotate() const = 0;
+		virtual void initMatrix() = 0;
+
+		virtual const vector4& getPosition() const = 0;
+
         float znear,  zfar;
     };
 
     struct Color
     {
         Color(UINT c = 0xffffff){
-			for (size_t i = 0; i < 4; i++)
-			{
-				value.color[3-i] = (c & 0xff) / 255.0;
-				c = c >> 8;
-			}
+			set(c);
         }	
 		Color(float r, float g, float b, float a = 0) {
 			value.aRGB.a = a;
 			value.aRGB.r = r;
 			value.aRGB.g = g;
 			value.aRGB.b = b;
+		}
+
+		Color& set(UINT c) {
+			for (size_t i = 0; i < 4; i++)
+			{
+				value.color[3 - i] = (c & 0xff) / 255.0;
+				c = c >> 8;
+			}
+			return *this;
 		}
 
         union {
@@ -380,6 +398,20 @@ namespace  mini3d
 			return std::move(ret);
 		}
 
+		const Color& operator *= (const Color& v) {
+			for (size_t i = 0; i < 4; i++)
+			{
+				value.color[i] *= v[i];
+			}
+			return *this;
+		}
+
+		Color operator * (const Color& v)const {
+			Color ret = *this;
+			ret *= v;
+			return std::move(ret);
+		}
+
 		Color operator + (const Color& vrhs)const {
 			Color ret;
 			for (size_t i = 0; i < 4; i++)
@@ -387,6 +419,14 @@ namespace  mini3d
 				ret[i] = (*this)[i] + vrhs[i];
 			}
 			return ret;
+		}
+
+		Color& operator += (const Color& vrhs) {
+			for (size_t i = 0; i < 4; i++)
+			{
+				(*this)[i] += vrhs[i];
+			}
+			return *this;
 		}
 
 		Color operator - (const Color& vrhs)const {
@@ -436,9 +476,16 @@ namespace  mini3d
 			viewProtM.m[3][1] = height*0.5;
         }
 
-        const Matrix &getMatrixCamera() const override {
-            return transfromMatrix;
+        const Matrix &getMatrix() const override {
+            return masterMatrix;
         }
+
+		// 通过 Camera 继承
+		virtual const Matrix & getTransfrom() const override
+		{
+			return transfromM;
+		}
+
 
 		// 通过 Camera 继承
 		virtual const Matrix & getMatrixViewProt() const override;
@@ -447,15 +494,23 @@ namespace  mini3d
         void initMatrix() override {
 
 			//相机位置
+			positionM.identity();
 			positionM.m[3][0] = -position[0];
 			positionM.m[3][1] = -position[1];
 			positionM.m[3][2] = -position[2];
 
 			//合并矩阵
-			transfromMatrix = positionM*rotateM;
-			transfromMatrix = transfromMatrix*perspectiveM;
+			transfromM = positionM*rotateM;
+			masterMatrix = transfromM*perspectiveM;
+			//masterMatrix = transfromM;
 			//transfromMatrix = rotateM*positionM*perspectiveM*viewProtM;
         }
+
+		// 通过 Camera 继承
+		virtual const Matrix & getRotate() const override
+		{
+			return rotateM;
+		}
 
 		void initPerMatrix()
 		{
@@ -467,7 +522,7 @@ namespace  mini3d
 			float fax = 1.0f / (float)tan(fovy * 0.5f);
 
 			m[0][0] = (float)(fax / aspect);
-			m[1][1] = (float)(fax);
+			m[1][1] = -(float)(fax);
 			m[2][2] = zfar / (zfar - znear);
 			m[3][2] = -znear * zfar / (zfar - znear);
 			m[2][3] = 1;
@@ -476,17 +531,33 @@ namespace  mini3d
         void setPosition(const vector4& pos)
         {
             position =pos;
-            
-
         }
 
         float width, height,  angle;
         vector4 eye,at, up,position;
-        Matrix transfromMatrix;
+        Matrix masterMatrix;
 
 	private:
-		Matrix rotateM, positionM, perspectiveM,viewProtM;
+		Matrix rotateM, positionM, perspectiveM,viewProtM,transfromM;
 
+
+		// 通过 Camera 继承
+		virtual const vector4 & getPosition() const override
+		{
+			return position;
+		}
+
+	};
+
+	//光源
+	class Light
+	{
+	public:
+		Light() {}
+		Light(const vector4& pos,float pow = (rand()%100)/100.0):position(pos), power(pow) {}
+
+		vector4 position;
+		float power;
 	};
 
 
@@ -494,7 +565,8 @@ namespace  mini3d
     class Object3D
     {
     public:
-        struct face{
+        struct Face{
+			typedef std::vector<Face> Vector;
 			int index[3];
         };
         Object3D();
@@ -503,29 +575,64 @@ namespace  mini3d
 
         std::vector<Color> colors;
         std::vector<vector4> points;
-        std::vector<face> faces;
+		std::vector<Face> faces;
 		std::vector<vector4> uv;
+		std::vector<vector4> faceNormal;
 
 		UINT* _textrue;
 		UINT _tsize;
+		
+		Matrix _m;
     };
+
+	class Geometry : public Object3D
+	{
+	public:
+		//射线与本身的交点与法线
+		virtual bool intersection(vector4 point, vector4 dir, vector4& position, vector4& n) = 0;
+
+
+
+	public:
+		Face::Vector _faces;
+	};
+
+
+	class Box : public Geometry
+	{
+	public:
+		Box(float w, float h, float d);
+		Box(float radio);
+
+	};
+
+	class Sphere : public Geometry
+	{
+	public:
+		Sphere(float radio);
+
+	};
 
 
     struct vertex
     {
         vertex():obj(nullptr){}
-        vector4 pos;
+		vector4 pos2D;
+		vector4 pos3D;
         vector4 UV;
         float rw;
         Color color;
+		vector4 normal;
 		const Object3D * obj;
-        void set(const Object3D &obj, int index,const vector4& pos2D,float w, const vector4& UV)
+        void set(const Object3D &obj, int index,const vector4& pos2D, const vector4& pos3D,float w, const vector4& UV,const vector4& normal)
         {
 			this->rw = 1.0f / w;
 			color = obj.colors[index]*rw;
             this->UV = UV*rw;
 			this->obj = &obj;
-			pos = pos2D;
+			this->pos2D = pos2D;
+			this->pos3D = pos3D;
+			this->normal = normal;
         }
         void normalizeSelf();
         vertex normalize()const;
@@ -571,6 +678,9 @@ namespace  mini3d
         void init();
         Matrix worldMatrix;
         Object3D obj;
+		std::vector<Light> pointLight;
+
+		Color amberLight;
     };
 
 	//设备接口
@@ -606,7 +716,7 @@ namespace  mini3d
 	};
 
 	class Render;
-	typedef void (Render::*setPixelFunction)(UINT& pixel,const vertex& v);
+	typedef void (Render::*setPixelFunction)(Color& pixel,const vertex& v);
     //渲染器
     class Render
     {
@@ -619,6 +729,8 @@ namespace  mini3d
             Zbuffer = new float[width*height* sizeof(float)];			
             this->width = width;
             this->height = height;
+			scene = nullptr;
+			camera = nullptr;
 			_bkColor = 0;
 			CreateDevice();
         }
@@ -641,13 +753,17 @@ namespace  mini3d
         static UINT check_cvv(const vector4& p);
 
         //设置像素
+		setPixelFunction setPixelFunc;
 		void setPixel(int x, int y, float w, const Color& color);
-		void setUVPixel(UINT& pixel,const vertex& v);
-		void setColorPixel(UINT& pixel, const vertex& v)
+		void setUVPixel(Color& pixel,const vertex& v);
+		void setColorPixel(Color& pixel, const vertex& v)
 		{
 			pixel = v.color;
 		}
-		setPixelFunction setPixelFunc;
+
+		//光渲染
+		void setLightPixel(Color& pixel, const vertex& v);
+
 
         //画线
         void drawline(vector4 be,vector4 ed);
@@ -666,6 +782,9 @@ namespace  mini3d
 		void FrameToWindow();
 
     private:
+		std::vector<Light> lights;
+		Scene* scene;
+		Camera* camera;
         int width,height;
         UINT *frameBuffer;
         float *Zbuffer;     // 1/z坐标深度

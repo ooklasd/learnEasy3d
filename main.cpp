@@ -23,13 +23,13 @@ int main(int argc, const char * argv[]) {
     Render render(camera.width,camera.height);
 
 	//-1错误表现
-    camera.setPosition({0.0f, -0.50f,0});
+    camera.setPosition({0.5f, 1.3f,-1});
 	render._state = Render::RENDER_STATE::textureRender;
 	render._lineColor = 0xff00ff;
 	render._bkColor = 0xeeeeee;
 
 	//Y轴旋转
-	float angleY = -PI_2;
+	float angleY = -PI_2;//-PI_2为正面0123
 	float rotateSpeed = 0;
 	while (render.isRending())
 	{
@@ -84,9 +84,12 @@ int main(int argc, const char * argv[]) {
 
 		if (key[VK_ESCAPE]) break;
 
-		camera.position.x = cos(angleY) * 1.5 + 0.5;
-		camera.position.z = sin(angleY) * 1.5 + 0.5;
-		camera.setLockAt(camera.position, { 0.5,0,0.5 }, { 0,1,0 });
+		camera.position.x = cos(angleY) * 1 + 0.5;
+		camera.position.z = sin(angleY) * 1 + 0.5;
+		//camera.position.y = (sin(angleY*3+PI_2)+1) * 0.5+1;
+
+
+		camera.setLockAt(camera.position, { 0.5,0.5,0.5 }, { 0,1,0 });
 		
 		angleY += 0.005*rotateSpeed;
 
@@ -95,6 +98,6 @@ int main(int argc, const char * argv[]) {
 		Sleep(16);
 	}
 
-    std::cout<<"完毕"<<endl;
+    std::cout<<"完毕"<<endl;	
 }
 
