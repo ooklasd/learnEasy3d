@@ -42,10 +42,15 @@ Object3D::~Object3D() {
 void Scene::init() {
 
 	amberLight = Color(0.1,0.1,0.1);
-	pointLight.push_back({ vector4({ 0.5f,1.1f,0.5f}),0.7f });
-	pointLight.push_back({ vector4({ 0.8f,1.3f,1.3f }) ,0.4f });
-	pointLight.push_back({ vector4({ 0.0f,1.3f,1.1f }) ,0.6f });
-	pointLight.push_back({ vector4({ 0.5f,0.5f,-1.0f }) ,0.5f });
+
+	//在面0123前面
+	pointLight.push_back({ vector4({ 0.5f,0.5f,-0.1f }) ,1.0f });
+
+	pointLight.push_back({ vector4({ -0.2f,1.1f,1.1f }) ,1.0f });
+	pointLight.push_back({ vector4({ 0.5f,1.1f,1.1f}),1.0f });
+	pointLight.push_back({ vector4({ 1.2f,1.1f,1.1f }) ,1.0f });
+
+	
 
 
     obj.points.push_back({0,0,0});
@@ -118,12 +123,10 @@ void Scene::init() {
 
 
 	//生成材质
-	obj._textrue = new UINT[64 * 64];
+	obj._textrue = new Color[64 * 64];
 	Color c1(0, 162.0 / 255, 232.0 / 255);
 	Color c2(206.0 / 255, 240.0 / 255, 255.0 / 255);
 
-	UINT color1 = c1;
-	UINT color2 = c2;
 	obj._tsize = 64;
 
 	for (size_t y = 0; y < 32; y++)
@@ -131,16 +134,16 @@ void Scene::init() {
 		for (size_t x = 0; x < 32; x++)
 		{
 			//蓝色左上
-			obj._textrue[y * 64 + x] = color1;
+			obj._textrue[y * 64 + x] = c1;
 
 			//蓝色右下		
-			obj._textrue[(y+32) * 64 + x+32] = color1;
+			obj._textrue[(y+32) * 64 + x+32] = c1;
 
 			//白色右上
-			obj._textrue[y * 64 + x + 32] = color2;
+			obj._textrue[y * 64 + x + 32] = c2;
 
 			//白色左下
-			obj._textrue[(y + 32) * 64 + x] = color2;
+			obj._textrue[(y + 32) * 64 + x] = c2;
 		}
 	}
 }
@@ -183,14 +186,7 @@ void Render::rending(Scene &scene, Camera &camera) {
 	auto rotateM = scene.worldMatrix*camera.getRotate();
 
 	//灯光变换
-	for (auto it = scene.pointLight.begin(); it != scene.pointLight.end(); it++)
-	{
-		lights.push_back(*it);
-		auto& curLight = lights.back();
-		curLight.position = curLight.position * transform;
-		curLight.position.normalizeSelfW();
-	}
-
+	lights = scene.pointLight;	
 
     //生成各个面
 	for (size_t iface = 0; iface < obj.faces.size(); iface++)
@@ -234,9 +230,9 @@ void Render::rending(Scene &scene, Camera &camera) {
         {
             //生成顶
             Triangle triangle;
-            triangle.v[0].set(obj, face.index[0],p2D_1, p1*transform,p3D_1.w,obj.uv[iface*3+0], faceNormal);
-            triangle.v[1].set(obj, face.index[1],p2D_2, p2*transform,p3D_2.w,obj.uv[iface*3+1], faceNormal);
-            triangle.v[2].set(obj, face.index[2],p2D_3, p3*transform,p3D_3.w,obj.uv[iface*3+2], faceNormal);
+            triangle.v[0].set(obj, face.index[0],p2D_1, p1,p3D_1.w,obj.uv[iface*3+0], obj.faceNormal[iface]);
+            triangle.v[1].set(obj, face.index[1],p2D_2, p2,p3D_2.w,obj.uv[iface*3+1], obj.faceNormal[iface]);
+            triangle.v[2].set(obj, face.index[2],p2D_3, p3,p3D_3.w,obj.uv[iface*3+2], obj.faceNormal[iface]);
 
             //分解三角形
             auto triangleV = triangle.makeTwo();
@@ -306,20 +302,20 @@ void mini3d::Render::setLightPixel(Color & pixel, const vertex & v)
 
 		//Phong材质属性
 		auto reflection = L - N * 2 * (L.dot(N));
-		auto eye = camera->getPosition() - v.pos3D;
+		auto eye = camera->getPosition() - v.pos3D;		
 		reflection.normalizeSelf();
 		eye.normalizeSelf();
 
 		auto reflectionValue = reflection.dot(eye);
 		reflectionValue = max(reflectionValue, 0);
-		reflectionValue = pow(reflectionValue, 10);
+		reflectionValue = pow(reflectionValue, 6);
 		PhongLight += reflectionValue*light.power;
 	}
 	LambertLight = max(LambertLight, 0);
 	PhongLight = max(PhongLight, 0);
 
 	//环境光+散射光+Phong高光
-	pixel = pixel*scene->amberLight + pixel*LambertLight + Color(0.5,0.5,0.5)* PhongLight;
+	pixel = pixel*scene->amberLight + pixel*LambertLight + Color(1,1,1)* PhongLight;
 
 	for each (auto& v in pixel.value.color)
 	{

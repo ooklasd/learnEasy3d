@@ -19,18 +19,18 @@ int main(int argc, const char * argv[]) {
     int screenWidth = 800,screenHeight = 500;
     Scene scene;
     scene.init();
-    PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,0.2,50);
+    PerspectiveCamera camera(screenWidth,screenHeight,M_PI_2,0.1,50);
     Render render(camera.width,camera.height);
 
 	//-1错误表现
-    camera.setPosition({0.5f, 1.3f,-1});
+    camera.setPosition({0.5f, 0.5f,-1});
 	render._state = Render::RENDER_STATE::textureRender;
 	render._lineColor = 0xff00ff;
 	render._bkColor = 0xeeeeee;
 
 	//Y轴旋转
 	float angleY = -PI_2;//-PI_2为正面0123
-	float rotateSpeed = 0;
+	float rotateSpeed = 4;
 	while (render.isRending())
 	{
 		//响应按钮
@@ -84,18 +84,22 @@ int main(int argc, const char * argv[]) {
 
 		if (key[VK_ESCAPE]) break;
 
-		camera.position.x = cos(angleY) * 1 + 0.5;
-		camera.position.z = sin(angleY) * 1 + 0.5;
-		//camera.position.y = (sin(angleY*3+PI_2)+1) * 0.5+1;
+		camera.position.x = cos(angleY) * 1.3 + 0.5;
+		camera.position.z = sin(angleY) * 1.3 + 0.5;
+		camera.position.y = (cos(angleY*3+PI_2)+1)*0.5+0.5;
 
 
 		camera.setLockAt(camera.position, { 0.5,0.5,0.5 }, { 0,1,0 });
 		
 		angleY += 0.005*rotateSpeed;
 
+		static auto nowTime = GetTickCount64();
+
 		render.preRending();
 		render.rending(scene, camera);
-		Sleep(16);
+		auto sleepTime = max(16*1000 - (GetTickCount64() - nowTime), 0)/1000;
+		nowTime = GetTickCount64();
+		Sleep(0);
 	}
 
     std::cout<<"完毕"<<endl;	

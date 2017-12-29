@@ -579,7 +579,7 @@ namespace  mini3d
 		std::vector<vector4> uv;
 		std::vector<vector4> faceNormal;
 
-		UINT* _textrue;
+		Color* _textrue;
 		UINT _tsize;
 		
 		Matrix _m;
